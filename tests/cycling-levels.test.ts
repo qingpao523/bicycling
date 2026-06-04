@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { LEVEL_TABLE, LEVEL_NAMES, DIMENSIONS, evaluateDimension } from "@/lib/engine/cycling-levels";
+import { LEVEL_TABLE, LEVEL_NAMES, DIMENSIONS, evaluateDimension, evaluateLevel } from "@/lib/engine/cycling-levels";
+import type { Activity, User } from "@/lib/types";
 
 describe("LEVEL_TABLE 常量", () => {
   it("有 12 段位 × 6 维度", () => {
@@ -77,5 +78,75 @@ describe("evaluateDimension 单维度评级", () => {
     expect(r.level).toBe(4);
     expect(r.gapWatts).toBeUndefined();
     expect(r.gapValue).toBeCloseTo(0.1, 2);
+  });
+});
+
+// helper: 构造最小可用 activity
+function mkAct(overrides: Partial<Activity> = {}): Activity {
+  return {
+    id: "a1",
+    userId: "u1",
+    source: "intervals.icu",
+    externalActivityId: "ext1",
+    name: "test",
+    startTime: new Date().toISOString(),
+    distanceKm: 0,
+    movingTimeMin: 0,
+    elevationM: 0,
+    avgSpeedKmh: 0,
+    rawSummaryJson: {},
+    rawStreamsJson: undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+const mkUser = (over: Partial<User> = {}): User => ({
+  id: "u1",
+  name: "test",
+  email: "t@e.com",
+  passwordHash: "x",
+  role: "user",
+  weightKg: 76,
+  ftp: 250,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...over,
+});
+
+describe("evaluateLevel 木桶综合", () => {
+  it("活动 < 5 条 → warnings", () => {
+    const r = evaluateLevel({ activities: [], user: mkUser() });
+    expect(r.warnings).toContain("活动数据不足");
+  });
+
+  it("体重缺失 → warnings + W/kg 维度 level null", () => {
+    const acts = Array.from({ length: 6 }, () => mkAct());
+    const r = evaluateLevel({
+      activities: acts,
+      user: mkUser({ weightKg: undefined, syncedWeightKg: undefined }),
+    });
+    expect(r.warnings).toContain("缺少体重数据");
+    expect(r.byDimension.ftp_20min.level).toBeNull();
+  });
+
+  it("有 user.ftp + weight → FTP 维度评级", () => {
+    const acts = Array.from({ length: 6 }, () => mkAct({ tss: 50 }));
+    const r = evaluateLevel({
+      activities: acts,
+      user: mkUser({ ftp: 304, weightKg: 76 }), // 304/76 = 4.0 → L6
+    });
+    expect(r.byDimension.ftp_20min.level).toBe(6);
+  });
+
+  it("数据窗口: 仅取 90 天内", () => {
+    const old = mkAct({ startTime: new Date(Date.now() - 200 * 86400000).toISOString(), tss: 100 });
+    const fresh = mkAct({ id: "a2", startTime: new Date().toISOString(), tss: 50 });
+    const r = evaluateLevel({
+      activities: [old, fresh, fresh, fresh, fresh, fresh],
+      user: mkUser(),
+    });
+    expect(r.dataWindow.activityCount).toBe(5); // old 被过滤
   });
 });

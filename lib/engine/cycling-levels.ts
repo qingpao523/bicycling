@@ -1,6 +1,9 @@
 // 骑行能力分级常量 + 评定算法
 // 设计文档: docs/superpowers/specs/2026-06-04-cycling-level-system-design.md
 
+import { buildPowerCurve } from "./power-curve";
+import type { Activity, User } from "@/lib/types";
+
 export const DIMENSIONS = [
   "sprint5s",
   "burst1min",
@@ -132,5 +135,105 @@ export function evaluateDimension(
     nextThreshold,
     gapValue,
     gapWatts,
+  };
+}
+
+export type LevelEvaluation = {
+  byDimension: Record<Dimension, DimensionEvaluation>;
+  overall: {
+    level: number;
+    label: string;
+    bottlenecks: Dimension[];      // 所有 level === overall.level 的维度 (≠ null)
+  };
+  dataWindow: {
+    startDate: string;
+    endDate: string;
+    activityCount: number;
+  };
+  warnings: string[];
+};
+
+const WINDOW_DAYS = 90;
+const MIN_ACTIVITIES = 5;
+
+function estimateVo2max(ftpWatts: number | undefined, weightKg: number | undefined): number | undefined {
+  if (!ftpWatts || !weightKg || weightKg <= 0) return undefined;
+  // 基础公式 (Hawley & Noakes): VO2max ≈ FTP × 10.8 / weight + 7
+  return Math.round((ftpWatts * 10.8) / weightKg + 7);
+}
+
+export function evaluateLevel(input: { activities: Activity[]; user: User }): LevelEvaluation {
+  const { activities, user } = input;
+  const warnings: string[] = [];
+
+  // 1. 时间窗口过滤
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - WINDOW_DAYS * 86400000);
+  const windowActs = activities.filter((a) => new Date(a.startTime) >= startDate);
+
+  // 2. 数据量校验
+  if (windowActs.length < MIN_ACTIVITIES) {
+    warnings.push("活动数据不足");
+  }
+
+  // 3. 体重校验
+  const weightKg = user.weightKg ?? user.syncedWeightKg ?? undefined;
+  if (!weightKg) {
+    warnings.push("缺少体重数据");
+  }
+
+  // 4. 提取 power curve 最佳值
+  const { curve } = buildPowerCurve(windowActs, weightKg, startDate, endDate);
+  const bestAt = (sec: number) => curve.find((p) => p.duration === sec);
+
+  // 5. FTP 来源: 用户档案 FTP 优先, 否则用 20min 最佳
+  const ftpWatts = user.ftp ?? bestAt(1200)?.power;
+  const ftpWkg = ftpWatts && weightKg ? Number((ftpWatts / weightKg).toFixed(2)) : undefined;
+
+  // 6. 6 维度值
+  const wkg = (sec: number): number | undefined => {
+    const p = bestAt(sec);
+    if (!p || !weightKg) return undefined;
+    return Number((p.power / weightKg).toFixed(2));
+  };
+
+  const dimensionValues: Record<Dimension, number | undefined> = {
+    sprint5s:        wkg(5),
+    burst1min:       wkg(60),
+    vo2_5min:        wkg(300),
+    ftp_20min:       ftpWkg,
+    endurance_60min: wkg(3600),
+    vo2max_mlkgmin:  estimateVo2max(ftpWatts, weightKg),
+  };
+
+  // 7. 每维度评级
+  const byDimension = DIMENSIONS.reduce(
+    (acc, dim) => {
+      acc[dim] = evaluateDimension(dim, dimensionValues[dim], weightKg);
+      return acc;
+    },
+    {} as Record<Dimension, DimensionEvaluation>,
+  );
+
+  // 8. 木桶: 综合段位 = 有数据维度的最低 level (null 维度跳过)
+  const validLevels = DIMENSIONS.map((d) => byDimension[d].level).filter(
+    (l): l is number => l !== null,
+  );
+  const overallLevel = validLevels.length ? Math.min(...validLevels) : 0;
+  const bottlenecks = DIMENSIONS.filter((d) => byDimension[d].level === overallLevel);
+
+  return {
+    byDimension,
+    overall: {
+      level: overallLevel,
+      label: LEVEL_NAMES[overallLevel],
+      bottlenecks,
+    },
+    dataWindow: {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      activityCount: windowActs.length,
+    },
+    warnings,
   };
 }
