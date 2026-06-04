@@ -362,10 +362,26 @@ export default async function ActivityDetailPage({
       key: "fatigue" as const,
       label: "疲劳",
       items: [
-        { label: "功率走势", value: fatigueGlanceItems[0] ?? "暂无流数据" },
-        { label: "速度走势", value: fatigueGlanceItems[1] ?? "暂无流数据" },
-        { label: "心率漂移", value: fatigueGlanceItems[2] ?? "暂无流数据" },
-        { label: "主观反馈", value: fatigueGlanceItems[3] ?? "还没填写骑后主观反馈" },
+        {
+          label: "功率走势",
+          value: fatigueGlanceItems[0] ?? "暂无流数据",
+          action: fatigueGlanceItems[0] ? undefined : { kind: "backfill" as const, activityId: displayActivity.id },
+        },
+        {
+          label: "速度走势",
+          value: fatigueGlanceItems[1] ?? "暂无流数据",
+          action: fatigueGlanceItems[1] ? undefined : { kind: "backfill" as const, activityId: displayActivity.id },
+        },
+        {
+          label: "心率漂移",
+          value: fatigueGlanceItems[2] ?? "暂无流数据",
+          action: fatigueGlanceItems[2] ? undefined : { kind: "backfill" as const, activityId: displayActivity.id },
+        },
+        {
+          label: "主观反馈",
+          value: fatigueGlanceItems[3] ?? "还没填写骑后主观反馈",
+          action: fuelLog ? undefined : { kind: "fill_fuel" as const },
+        },
       ],
     },
     {
@@ -553,7 +569,7 @@ export default async function ActivityDetailPage({
             </section>
 
             <section className="activity-side-stack">
-              <div className="panel activity-side-card activity-fuel-card">
+              <div id="fuel-log" className="panel activity-side-card activity-fuel-card">
                 <div className="section-title">
                   <h2>骑中补给与疲劳记录</h2>
                   <span className={`status-dot ${fuelLog ? "ok" : "warn"}`}>{fuelLog ? "已记录" : "待填写"}</span>

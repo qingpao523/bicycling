@@ -1,6 +1,7 @@
 import { getAppConfig, getUserById, listUsers, listUsersWithRecentActivity, markSyncJobDone, markSyncJobFailed, claimAvailableSyncJobs, updateAppConfig } from "@/lib/storage";
 import { handleIntervalsStreamBackfillJob, runIntervalsSync } from "@/lib/intervals-sync";
 import { handleStravaDeleteJob, handleStravaStreamBackfillJob, runStravaSync } from "@/lib/strava-sync";
+import type { User } from "@/lib/types";
 
 function envValue(name: string) {
   const value = process.env[name]?.trim();
@@ -112,10 +113,59 @@ export async function runScheduledAutoSync() {
     }
   }
 
+  // 顺便扫缺 streams 的活动
+  const backfillResults: Array<Record<string, unknown>> = [];
+  for (const user of allUsers) {
+    try {
+      const r = await enqueueMissingStreamBackfills(user, 20);
+      backfillResults.push({ userId: user.id, ...r });
+    } catch (e) {
+      backfillResults.push({ userId: user.id, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   await updateAppConfig({
     autoSyncLastRunAt: new Date().toISOString(),
     autoSyncLastStatus: results.length ? `已完成 ${results.length} 个自动同步任务` : "无可同步用户",
   });
 
-  return { skipped: false, results };
+  return { skipped: false, results, streamBackfillEnqueue: backfillResults };
+}
+
+async function enqueueMissingStreamBackfills(user: User, limit: number): Promise<{ enqueued: number; scanned: number }> {
+  const { listActivitiesByUser, enqueueSyncJob } = await import("@/lib/storage");
+  const allActivities = await listActivitiesByUser(user.id);
+  // 仅近 30 天 cycling, 无 streams, 未跳过的
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const candidates = allActivities.filter((a) => {
+    const ts = new Date(a.startTime).getTime();
+    if (ts < cutoff) return false;
+    if (a.movingTimeMin < 10) return false;
+    const raw = a.rawSummaryJson as Record<string, unknown> | undefined;
+    const type = String(raw?.type ?? raw?.sport_type ?? "").toLowerCase();
+    const isCycling = type.includes("ride") || type.includes("bike") || type.includes("cycl");
+    if (!isCycling) return false;
+    const streams = a.rawStreamsJson as Record<string, unknown> | undefined;
+    return !streams || Object.keys(streams).length === 0;
+  });
+  // 高 TSS 优先 (分析价值高)
+  candidates.sort((a, b) => (b.tss ?? 0) - (a.tss ?? 0));
+  const toEnqueue = candidates.slice(0, limit);
+
+  let enqueued = 0;
+  for (let i = 0; i < toEnqueue.length; i++) {
+    const act = toEnqueue[i];
+    const availableAt = new Date(Date.now() + i * 8000).toISOString(); // 8s stagger
+    await enqueueSyncJob({
+      userId: user.id,
+      source: act.source,
+      jobType: "stream_backfill",
+      reason: "cron_scan",
+      externalRef: `${act.externalActivityId}:streams`,
+      payload: { activityId: act.id, externalActivityId: act.externalActivityId },
+      availableAt,
+    });
+    enqueued++;
+  }
+  return { enqueued, scanned: candidates.length };
 }
