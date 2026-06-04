@@ -9,17 +9,20 @@ type Props = {
   historical?: LevelEvaluation | null;     // 历史峰值标记 (可选)
 };
 
+// 历史色固定紫,跟段位色阶强对比,统一与 LevelRadar
+const HIST_COLOR = "#7c3aed";
+
 export function LevelProgress({ evaluation, historical }: Props) {
   return (
     <div className="analytics-card">
       <div className="analytics-card-header">
         <h2>6 维能力进度</h2>
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-          {historical ? "实色 = 近 90 天 · 灰色标记 = 历史最高" : "悬停阈值线查看段位"}
+          {historical ? "实色填充 = 近 90 天 · 紫色叠层 + 标 = 历史最高" : "悬停阈值线查看段位"}
         </span>
       </div>
 
-      <div style={{ display: "grid", gap: 20 }}>
+      <div style={{ display: "grid", gap: 22 }}>
         {DIMENSIONS.map((dim) => {
           const ev = evaluation.byDimension[dim];
           const histEv = historical?.byDimension[dim];
@@ -29,20 +32,17 @@ export function LevelProgress({ evaluation, historical }: Props) {
           const currentPct = ev.value !== null ? Math.min((ev.value / maxValue) * 100, 100) : 0;
           const histPct = histEv?.value != null ? Math.min((histEv.value / maxValue) * 100, 100) : null;
           const color = LEVEL_BG[LEVEL_COLOR_BUCKET(ev.level ?? 0)];
-          const histColor = histEv?.level != null
-            ? LEVEL_BG[LEVEL_COLOR_BUCKET(histEv.level)]
-            : "#94a3b8";
+          const histHigher = histPct !== null && histPct > currentPct + 1;
 
           return (
             <div key={dim}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
                 <strong style={{ fontSize: "0.92rem" }}>{meta.label}</strong>
                 {ev.value !== null ? (
-                  <span style={{ fontSize: "0.85rem" }}>
+                  <span style={{ fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontWeight: 600 }}>{ev.value.toFixed(2)} {meta.unit}</span>
                     <span
                       style={{
-                        marginLeft: 8,
                         padding: "2px 8px",
                         borderRadius: 6,
                         background: color,
@@ -53,23 +53,62 @@ export function LevelProgress({ evaluation, historical }: Props) {
                     >
                       {ev.label} L{ev.level}
                     </span>
+                    {/* 历史最高徽章 (有就显示,跟当前并排,醒目对比) */}
+                    {histEv?.value != null && histEv.level != null && (
+                      <span
+                        title={`历史最高: ${histEv.value.toFixed(2)} ${meta.unit}`}
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: 6,
+                          background: "white",
+                          color: HIST_COLOR,
+                          border: `2px solid ${HIST_COLOR}`,
+                          fontSize: "0.72rem",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        🏆 史最高 L{histEv.level}
+                        {histHigher ? ` · ${histEv.value.toFixed(2)}` : ""}
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>— 数据不足</span>
                 )}
               </div>
 
-              {/* 进度条 + 阈值线 */}
+              {/* 进度条 + 阈值线 + 历史叠层 */}
               <div
                 style={{
                   position: "relative",
-                  height: 16,
+                  height: 18,
                   background: "var(--line, #e5e7eb)",
-                  borderRadius: 8,
+                  borderRadius: 9,
                   overflow: "visible",
                 }}
               >
-                {/* 当前值填充 */}
+                {/* 历史峰值半透明紫叠层 — 当历史 > 近期时显示, 像"曾经到这里" */}
+                {histHigher && histPct !== null && (
+                  <div
+                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: 0,
+                      height: "100%",
+                      width: `${histPct}%`,
+                      background: HIST_COLOR,
+                      opacity: 0.18,
+                      borderRadius: 9,
+                      cursor: "help",
+                    }}
+                  />
+                )}
+
+                {/* 当前值实色填充 (主层, 在上) */}
                 {ev.value !== null && (
                   <div
                     style={{
@@ -79,30 +118,49 @@ export function LevelProgress({ evaluation, historical }: Props) {
                       height: "100%",
                       width: `${currentPct}%`,
                       background: color,
-                      borderRadius: 8,
+                      borderRadius: 9,
                       transition: "width 0.6s",
                     }}
                   />
                 )}
 
-                {/* 历史峰值三角标记 — 始终显示, 即使 == 近期 (用户能看到"系统对比过了") */}
+                {/* 历史峰值竖线标记 + 顶上"史"标 — 显著可见 */}
                 {histPct !== null && (
                   <div
-                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (${histEv!.label ?? "—"} L${histEv!.level ?? "?"})`}
+                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
                     style={{
                       position: "absolute",
                       left: `${histPct}%`,
-                      top: -6,
+                      top: -4,
                       transform: "translateX(-50%)",
-                      width: 0,
-                      height: 0,
-                      borderLeft: "5px solid transparent",
-                      borderRight: "5px solid transparent",
-                      borderTop: `6px solid ${histColor}`,
-                      opacity: histPct > currentPct + 1 ? 0.8 : 0.4, // 重合时变淡防视觉杂乱
+                      width: 3,
+                      height: 26,
+                      background: HIST_COLOR,
+                      borderRadius: 2,
+                      boxShadow: `0 0 0 2px white, 0 1px 4px rgba(124,58,237,0.4)`,
                       cursor: "help",
+                      zIndex: 2,
                     }}
-                  />
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -16,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        fontSize: "0.62rem",
+                        fontWeight: 700,
+                        color: HIST_COLOR,
+                        background: "white",
+                        padding: "1px 4px",
+                        borderRadius: 3,
+                        border: `1px solid ${HIST_COLOR}`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      史
+                    </span>
+                  </div>
                 )}
 
                 {/* 12 段位阈值刻度 */}
@@ -117,9 +175,9 @@ export function LevelProgress({ evaluation, historical }: Props) {
                         position: "absolute",
                         left: `${leftPct}%`,
                         top: -2,
-                        height: 20,
+                        height: 22,
                         width: 1,
-                        background: "rgba(0,0,0,0.3)",
+                        background: "rgba(0,0,0,0.25)",
                         cursor: "help",
                       }}
                     />
@@ -127,21 +185,13 @@ export function LevelProgress({ evaluation, historical }: Props) {
                 })}
               </div>
 
-              {/* 距下一级提示 + 历史峰值差距 */}
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 4, fontSize: "0.75rem", color: "var(--muted)" }}>
-                <span>
-                  {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0
-                    ? `▶ 距 ${ev.nextLabel} 还差 ${ev.gapValue.toFixed(2)} ${meta.unit}${ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""}`
-                    : ""}
-                </span>
-                {histPct !== null && histEv?.value != null && (
-                  <span style={{ opacity: histPct > currentPct + 1 ? 0.8 : 0.5 }}>
-                    {histPct > currentPct + 1
-                      ? `◣ 历史最高 ${histEv.value.toFixed(2)} ${meta.unit} (L${histEv.level})`
-                      : `◣ = 历史最高`}
-                  </span>
-                )}
-              </div>
+              {/* 距下一级提示 */}
+              {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0 ? (
+                <div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--muted)" }}>
+                  ▶ 距 {ev.nextLabel} 还差 {ev.gapValue.toFixed(2)} {meta.unit}
+                  {ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""}
+                </div>
+              ) : null}
             </div>
           );
         })}

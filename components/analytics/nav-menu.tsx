@@ -12,7 +12,6 @@ import {
   Gauge,
   Heart,
   Home,
-  LineChart,
   MessageSquare,
   Target,
   Trophy,
@@ -24,7 +23,6 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/analytics", label: "首页", icon: Home },
-  { href: "/analytics/pmc", label: "PMC", icon: LineChart },
   { href: "/analytics/power-curve", label: "功率曲线", icon: Zap },
   { href: "/analytics/power-profile", label: "功率形态", icon: Target },
   { href: "/analytics/level", label: "能力水位", icon: Award },
