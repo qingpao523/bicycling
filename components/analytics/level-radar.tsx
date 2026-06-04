@@ -76,10 +76,14 @@ export function LevelRadar({ evaluation, historical }: Props) {
       {/* 段位徽章 — 放在雷达下方, 不再遮挡 */}
       <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
         <BadgeChip color={overallColor} label="近 90 天" level={evaluation.overall.level} text={evaluation.overall.label} />
-        {historical && historical.overall.level !== evaluation.overall.level && (
+        {historical && (
           <BadgeChip
             color={histColor}
-            label="历史最佳"
+            label={
+              historical.overall.level === evaluation.overall.level
+                ? "历史最佳 (=近期)"
+                : "历史最佳"
+            }
             level={historical.overall.level}
             text={historical.overall.label}
             faded

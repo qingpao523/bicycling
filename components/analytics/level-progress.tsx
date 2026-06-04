@@ -85,10 +85,10 @@ export function LevelProgress({ evaluation, historical }: Props) {
                   />
                 )}
 
-                {/* 历史峰值三角标记 (仅当历史比近期高才显示, 防重叠) */}
-                {histPct !== null && histPct > currentPct + 1 && (
+                {/* 历史峰值三角标记 — 始终显示, 即使 == 近期 (用户能看到"系统对比过了") */}
+                {histPct !== null && (
                   <div
-                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (${histEv!.label} L${histEv!.level})`}
+                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (${histEv!.label ?? "—"} L${histEv!.level ?? "?"})`}
                     style={{
                       position: "absolute",
                       left: `${histPct}%`,
@@ -99,7 +99,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                       borderLeft: "5px solid transparent",
                       borderRight: "5px solid transparent",
                       borderTop: `6px solid ${histColor}`,
-                      opacity: 0.7,
+                      opacity: histPct > currentPct + 1 ? 0.8 : 0.4, // 重合时变淡防视觉杂乱
                       cursor: "help",
                     }}
                   />
@@ -134,9 +134,11 @@ export function LevelProgress({ evaluation, historical }: Props) {
                     ? `▶ 距 ${ev.nextLabel} 还差 ${ev.gapValue.toFixed(2)} ${meta.unit}${ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""}`
                     : ""}
                 </span>
-                {histPct !== null && histPct > currentPct + 1 && (
-                  <span style={{ opacity: 0.7 }}>
-                    ◣ 历史最高 {histEv!.value!.toFixed(2)} {meta.unit} (L{histEv!.level})
+                {histPct !== null && histEv?.value != null && (
+                  <span style={{ opacity: histPct > currentPct + 1 ? 0.8 : 0.5 }}>
+                    {histPct > currentPct + 1
+                      ? `◣ 历史最高 ${histEv.value.toFixed(2)} ${meta.unit} (L${histEv.level})`
+                      : `◣ = 历史最高`}
                   </span>
                 )}
               </div>
