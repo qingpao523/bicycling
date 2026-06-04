@@ -5,6 +5,8 @@ data/app.db
 data/app.db-journal
 data/manager/
 prisma/generated
+prisma/data/
+prisma/prisma/
 npm-debug.log*
 .env
 .env.*
