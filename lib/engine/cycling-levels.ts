@@ -66,3 +66,71 @@ export const DIMENSION_META: Record<Dimension, { label: string; unit: "W/kg" | "
   endurance_60min: { label: "60min 耐力",   unit: "W/kg", durationSeconds: 3600 },
   vo2max_mlkgmin:  { label: "VO2max",       unit: "ml/kg/min" },
 };
+
+export type DimensionEvaluation = {
+  dimension: Dimension;
+  value: number | null;          // 当前 W/kg 或 ml/kg/min
+  unit: "W/kg" | "ml/kg/min";
+  level: number | null;          // 0-11, null = 数据缺失
+  label: string | null;
+  nextLevel?: number;
+  nextLabel?: string;
+  nextThreshold?: number;
+  gapValue?: number;             // 距下一级差多少 W/kg 或 ml/kg/min
+  gapWatts?: number;             // 差多少瓦 (仅 W/kg 维度且有 weight)
+};
+
+/**
+ * 单维度评级
+ * @param dim    维度 key
+ * @param value  当前值 (W/kg 或 ml/kg/min, undefined 表示数据缺失)
+ * @param weightKg 体重 (用于将 W/kg 差距换算成瓦; undefined 时 gapWatts 不算)
+ */
+export function evaluateDimension(
+  dim: Dimension,
+  value: number | undefined,
+  weightKg: number | undefined,
+): DimensionEvaluation {
+  const meta = DIMENSION_META[dim];
+  const thresholds = LEVEL_TABLE[dim];
+
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return {
+      dimension: dim,
+      value: null,
+      unit: meta.unit,
+      level: null,
+      label: null,
+    };
+  }
+
+  // 找最大的 i 使 thresholds[i] <= value
+  let level = 0;
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (value >= thresholds[i]) {
+      level = i;
+      break;
+    }
+  }
+
+  const nextLevel = level < 11 ? level + 1 : undefined;
+  const nextThreshold = nextLevel !== undefined ? thresholds[nextLevel] : undefined;
+  const gapValue = nextThreshold !== undefined ? Number((nextThreshold - value).toFixed(2)) : undefined;
+  const gapWatts =
+    gapValue !== undefined && meta.unit === "W/kg" && weightKg && weightKg > 0
+      ? Math.round(gapValue * weightKg)
+      : undefined;
+
+  return {
+    dimension: dim,
+    value,
+    unit: meta.unit,
+    level,
+    label: LEVEL_NAMES[level],
+    nextLevel,
+    nextLabel: nextLevel !== undefined ? LEVEL_NAMES[nextLevel] : undefined,
+    nextThreshold,
+    gapValue,
+    gapWatts,
+  };
+}
