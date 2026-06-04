@@ -10,15 +10,8 @@ import {
   LEVEL_TABLE,
   LEVEL_NAMES,
   LEVEL_COLOR_BUCKET,
+  LEVEL_BG,
 } from "@/lib/engine/cycling-levels";
-
-const LEVEL_BG: Record<string, string> = {
-  gray: "#94a3b8",
-  blue: "#3b82f6",
-  green: "#10b981",
-  purple: "#8b5cf6",
-  gold: "#f59e0b",
-};
 
 type Props = { evaluation: LevelEvaluation };
 

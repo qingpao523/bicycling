@@ -46,6 +46,18 @@ export const LEVEL_COLOR_BUCKET = (level: number): "gray" | "blue" | "green" | "
 };
 
 /**
+ * 色阶 bucket → 实际十六进制色值 (UI 单一数据源)
+ * 改这里 → 所有徽章/进度条/表头/雷达填充全部联动
+ */
+export const LEVEL_BG: Record<"gray" | "blue" | "green" | "purple" | "gold", string> = {
+  gray: "#94a3b8",
+  blue: "#3b82f6",
+  green: "#10b981",
+  purple: "#8b5cf6",
+  gold: "#f59e0b",
+};
+
+/**
  * 6 维度 × 12 段位阈值矩阵 (W/kg 下限, vo2max 是 ml/kg/min)
  * 设计文档 §3.2
  */
