@@ -9,6 +9,9 @@ import { getAppConfig } from "@/lib/storage";
 import type { Activity, User } from "@/lib/types";
 import type { PmcDataPoint } from "./pmc";
 import type { PowerCurvePoint } from "./power-curve";
+import { evaluateLevel, type LevelEvaluation } from "./cycling-levels";
+import { generateUpgradePlan, type UpgradePlan } from "./level-progression";
+import { predictEta, type EtaPrediction } from "./level-eta";
 
 export interface AnalyticsAiContext {
   user: {
@@ -55,6 +58,10 @@ export interface AnalyticsAiContext {
     z6_pct?: number;
     z7_pct?: number;
   };
+  // 新增: 骑行能力分级
+  level_evaluation?: LevelEvaluation;
+  upgrade_plan?: UpgradePlan;
+  eta_prediction?: EtaPrediction;
 }
 
 export interface AnalyticsAiResult {
@@ -98,6 +105,13 @@ function buildSystemPrompt(): string {
     "5. 可执行的改善路径（包含短期 4-8 周与长期 6-12 个月）",
     "输出必须严格按照 JSON schema 返回，所有字段必填且内容具体。",
     "风格要求：专业、精准、有判断力，避免空洞鼓励话术。允许使用 W/kg、FTP%、Z1-Z7 等专业术语。",
+    "重要 — 骑行能力分级 (level_evaluation) 已由 engine 算好, 必须严格遵守：",
+    "  • 引用任何 W/kg 或 VO2max 数字时, 必须紧跟段位标签, 格式: 'FTP 3.29 W/kg (中PRO 入门 L4/11)'",
+    "  • 综合段位用 level_evaluation.overall.label, 不要自己重新评判",
+    "  • 短板维度优先讲 level_evaluation.overall.bottlenecks",
+    "  • 训练建议直接引用 upgrade_plan, 不要另起炉灶",
+    "  • ETA 引用 eta_prediction.weeks 和 eta_prediction.confidence, 不要自己估时间",
+    "  • 严禁自己重算 W/kg 或重新判段位 — engine 已经算好, AI 只负责叙述",
   ].join(" ");
 }
 
@@ -259,6 +273,11 @@ export function buildAnalyticsContext(input: {
     };
   })();
 
+  // 骑行能力分级评定 (engine 算好喂给 AI, 严禁 AI 自己重算)
+  const levelEvaluation = evaluateLevel({ activities, user });
+  const upgradePlan = generateUpgradePlan(levelEvaluation);
+  const etaPrediction = predictEta(levelEvaluation, pmcData);
+
   return {
     user: {
       weight_kg: weightKg ?? undefined,
@@ -295,5 +314,8 @@ export function buildAnalyticsContext(input: {
       activities_with_hr_pct: hrPct,
     },
     zone_distribution: zoneDistribution,
+    level_evaluation: levelEvaluation,
+    upgrade_plan: upgradePlan,
+    eta_prediction: etaPrediction,
   };
 }
