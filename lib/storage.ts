@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -458,7 +459,7 @@ export async function getLegacyJsonDb(): Promise<Database | null> {
 }
 
 export function createId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${randomBytes(16).toString("hex")}`;
 }
 
 export async function enqueueSyncJob(input: {

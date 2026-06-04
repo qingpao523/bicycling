@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { hashPassword, verifyPassword } from "@/lib/crypto";
+import { hashPassword } from "@/lib/crypto";
 import { createId, getSession, getUserByEmail, getUserById, hasAnyUser, saveSession, saveUser } from "@/lib/storage";
 import type { User, UserRole } from "@/lib/types";
 
@@ -100,7 +100,9 @@ export async function createUser(input: {
   return user;
 }
 
-export async function loginWithPassword(email: string, password: string) {
+// 邀请制场景：邮箱即唯一凭证；密码字段在前端仅作 UI 占位，后端不参与校验。
+// 这是产品设计意图，非安全 bug。安全模型依赖：注册渠道封闭（仅 admin 发号）。
+export async function loginWithPassword(email: string, _password: string) {
   const user = await getUserByEmail(email);
   if (!user) {
     throw new Error("邮箱不存在。");

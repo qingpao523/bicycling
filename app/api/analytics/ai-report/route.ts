@@ -5,11 +5,7 @@ import { calculatePmc } from "@/lib/engine/pmc";
 import { buildPowerCurve } from "@/lib/engine/power-curve";
 import { buildAnalyticsContext, generateAnalyticsReport } from "@/lib/engine/ai-analytics";
 import { prisma } from "@/lib/prisma";
-import { getAppConfig } from "@/lib/storage";
-
-function createId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-}
+import { createId, getAppConfig } from "@/lib/storage";
 
 export async function GET() {
   try {

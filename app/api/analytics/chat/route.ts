@@ -3,11 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeAiBaseUrl, parseAiJsonResponse } from "@/lib/ai-provider";
 import { decryptSecret } from "@/lib/crypto";
-import { getAppConfig } from "@/lib/storage";
-
-function createId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-}
+import { createId, getAppConfig } from "@/lib/storage";
 
 export async function GET() {
   try {
