@@ -3,8 +3,11 @@
 - **日期**：2026-06-04
 - **范围**：bicycling repo, 旗舰版（含训练计划生成 + PMC 达成时间预测）
 - **状态**：设计待 review
-- **预计工时**：5-7 人日，分 3 个 sub-sprint
+- **预计工时**：5.5-7.5 人日，分 3 个 sub-sprint
 - **作者**：Claude (P8 协同)
+- **修订**：
+  - 2026-06-04 v1 初稿
+  - 2026-06-04 v2 加入 §7.6 分级标准透明度 (level-standard-table)
 
 ---
 
@@ -364,6 +367,7 @@ type EtaPrediction = {
 | `level-progress.tsx` | 6 行进度条,每行显示 [维度名] [W/kg] [当前段位徽章] [——————▮————] [下一级阈值] [差 X W] | 纯 CSS |
 | `upgrade-path-card.tsx` | 4 周训练块卡片,显示训练名/频率/详情/预期收益 | 纯 JSX |
 | `eta-prediction-card.tsx` | ETA 数字 + 置信度标签 + 进度条样视觉 | 纯 JSX |
+| `level-standard-table.tsx` | 完整 12×6 分级标准表,默认折叠展开后展示全部阈值 + 数据来源引用 + "如何评定"说明 | 纯 CSS |
 
 ### 7.3 段位徽章设计
 
@@ -383,13 +387,57 @@ type EtaPrediction = {
 ├─ 顶部: 综合段位大徽章 + 短板维度提示
 ├─ 中部: level-radar (左) + level-progress (右)
 ├─ 训练: upgrade-path-card
-└─ 底部: eta-prediction-card + "去看 PMC 详情"链接
+├─ 预测: eta-prediction-card + "去看 PMC 详情"链接
+└─ 底部: level-standard-table (默认折叠, "查看完整分级标准 ▾" 触发)
 ```
 
 ### 7.5 数据加载
 
 - SSR 加载初始数据（避免闪动）
 - 客户端缓存 1h，跨页面共享 React context
+
+### 7.6 分级标准透明度 (level-standard-table)
+
+**底层逻辑**：用户能看到"为什么我是这个段位"才会信任系统。标准必须透明,不能黑盒。
+
+#### 7.6.1 组件结构
+
+```
+┌─ 📊 完整分级标准 ▾ (默认折叠)
+└─ 展开后:
+    ├─ 简介段
+    │   "本系统基于 Coggan 功率训练分级 + 中文骑友圈段位命名,
+    │    采用木桶短板法评定综合段位 — 你的最弱维度决定整体等级"
+    │
+    ├─ 12×6 完整阈值表 (横轴段位 / 纵轴维度)
+    │   高亮当前所在格 (你这次评定数据)
+    │   每段位颜色与徽章一致 (L0-3 蓝 / L4-6 绿 / L7-9 紫 / L10-11 金)
+    │
+    ├─ 名词解释折叠组
+    │   ├─ "什么是 W/kg" → "功率除体重,反映绝对耐力"
+    │   ├─ "什么是 FTP" → "Functional Threshold Power, 60min 持续输出"
+    │   ├─ "什么是 VO2max" → "最大摄氧量, 高强度天花板"
+    │   └─ "木桶短板法为什么这样设计" → 训练学解释
+    │
+    └─ 数据来源引用
+        ├─ Coggan & Allen《Training and Racing with a Power Meter》第 3 版
+        ├─ 小红书 @骑行实验室 段位命名参考
+        └─ "数据有疑问? 联系 admin 调整"
+```
+
+#### 7.6.2 进度条上的阈值标记
+
+`level-progress.tsx` 的进度条额外标注**关键阈值线**（避免用户只在折叠表里能看到对照），鼠标 hover 显示该格阈值：
+
+```
+sprint5s | 11.5 W/kg [小PRO 毕业]
+[L0──L1──L2──L3▮▮▮▮L4──L5──L6──L7──L8──L9──L10──L11]
+                  ↑当前位
+```
+
+#### 7.6.3 内容来源
+
+`level-standard-table` 的内容直接从 §3.1 段位命名表 + §3.2 阈值矩阵生成（同一份常量,落 `lib/engine/cycling-levels.ts` LEVEL_TABLE 和 LEVEL_NAMES）—— **单一数据源**,doc / engine / UI 永远一致,改一处全联动。
 
 ---
 
@@ -516,6 +564,12 @@ context.eta = predictEta(context.levelEvaluation, pmcSeries);
 - [ ] 木桶逻辑：单维度跌落能正确触发综合段位下调
 - [ ] 缺失体重 / 数据 / 5min 等场景 UI 不崩
 - [ ] ETA 在 CTL 下降时正确显示警告
+- [ ] **分级标准透明度** (新增):
+  - [ ] `level-standard-table` 折叠面板能展开完整 12×6 阈值表
+  - [ ] 当前所在格在表中高亮 (颜色与徽章一致)
+  - [ ] 名词解释 (W/kg / FTP / VO2max / 木桶法) 文案准确
+  - [ ] 数据来源引用完整 (Coggan + 小红书)
+  - [ ] 进度条上阈值线 hover 显示对应段位
 
 ---
 
@@ -536,12 +590,14 @@ context.eta = predictEta(context.levelEvaluation, pmcSeries);
 3. 改造 `lib/ai.ts` system prompt 加段位规则
 4. 集成测试 + curl 真实端点验证 AI 报告产物
 
-### Sub-sprint C — UI（2.5 day）
+### Sub-sprint C — UI（3 day, 因加 standard-table 从 2.5 上调）
 
-1. 新建 4 个组件（radar / progress / upgrade-path / eta）
+1. 新建 5 个组件（radar / progress / upgrade-path / eta / **standard-table**）
 2. 新建 `app/(analytics)/analytics/level/page.tsx` + 路由
 3. nav-menu 加 "能力水位" 入口
 4. 体重缺失 / 数据不足等引导 UI
+5. **standard-table 折叠组件 + 进度条阈值线 hover 提示**
+6. 单一数据源验证: doc § 3 阈值表 ↔ engine LEVEL_TABLE 常量 ↔ UI 渲染必须完全一致
 5. 手动 smoke：3 类用户（无数据 / 部分数据 / 完整数据）
 
 ---
