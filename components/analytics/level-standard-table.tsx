@@ -13,10 +13,13 @@ import {
   LEVEL_BG,
 } from "@/lib/engine/cycling-levels";
 
-type Props = { evaluation: LevelEvaluation };
+type Props = {
+  evaluation: LevelEvaluation;
+  historical?: LevelEvaluation | null;
+};
 
-export function LevelStandardTable({ evaluation }: Props) {
-  const [open, setOpen] = useState(false);
+export function LevelStandardTable({ evaluation, historical }: Props) {
+  const [open, setOpen] = useState(true); // 默认展开
 
   return (
     <div className="analytics-card">
@@ -46,7 +49,8 @@ export function LevelStandardTable({ evaluation }: Props) {
         <div style={{ marginTop: 12 }}>
           <p style={{ fontSize: "0.88rem", color: "var(--muted)", marginBottom: 16 }}>
             本系统基于 <strong>Coggan 功率训练分级</strong> + 中文骑友圈段位命名,
-            采用 <strong>木桶短板法</strong> 评定综合段位 — 你的最弱维度决定整体等级。
+            采用 <strong>最强项法</strong> 评定综合段位 — 你的最强维度代表当前水位 (业余车手往往专精某项, 不可能全面 max)。
+            {historical && " 表中实色高亮 = 近 90 天所在格, 虚线边框 = 历史最佳所在格。"}
           </p>
 
           {/* 12×6 阈值表 */}
@@ -75,6 +79,7 @@ export function LevelStandardTable({ evaluation }: Props) {
               <tbody>
                 {DIMENSIONS.map((dim) => {
                   const currentLevel = evaluation.byDimension[dim].level;
+                  const histLevel = historical?.byDimension[dim].level ?? null;
                   return (
                     <tr key={dim}>
                       <td style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
@@ -82,6 +87,8 @@ export function LevelStandardTable({ evaluation }: Props) {
                       </td>
                       {LEVEL_TABLE[dim].map((t, i) => {
                         const isCurrent = currentLevel === i;
+                        // 历史最佳: 显示在与 current 不同的位置 (避免重复装饰)
+                        const isHistOnly = histLevel === i && !isCurrent;
                         return (
                           <td
                             key={i}
@@ -89,13 +96,40 @@ export function LevelStandardTable({ evaluation }: Props) {
                               padding: "6px 4px",
                               textAlign: "center",
                               borderBottom: "1px solid var(--line, #e5e7eb)",
-                              background: isCurrent ? LEVEL_BG[LEVEL_COLOR_BUCKET(i)] : undefined,
+                              background: isCurrent
+                                ? LEVEL_BG[LEVEL_COLOR_BUCKET(i)]
+                                : isHistOnly
+                                  ? "var(--surface-alt, #f8fafc)"
+                                  : undefined,
                               color: isCurrent ? "white" : undefined,
-                              fontWeight: isCurrent ? 700 : 400,
-                              outline: isCurrent ? "2px solid #1f2937" : undefined,
+                              fontWeight: isCurrent || isHistOnly ? 700 : 400,
+                              outline: isCurrent
+                                ? "2px solid #1f2937"
+                                : isHistOnly
+                                  ? `2px dashed ${LEVEL_BG[LEVEL_COLOR_BUCKET(i)]}`
+                                  : undefined,
+                              position: "relative",
                             }}
                           >
                             {i === 0 ? "—" : t}
+                            {isHistOnly && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: -2,
+                                  right: -2,
+                                  fontSize: "0.55rem",
+                                  background: LEVEL_BG[LEVEL_COLOR_BUCKET(i)],
+                                  color: "white",
+                                  padding: "1px 4px",
+                                  borderRadius: 3,
+                                  fontWeight: 700,
+                                }}
+                                title={`历史最佳: ${historical!.byDimension[dim].value?.toFixed(2) ?? "?"} ${DIMENSION_META[dim].unit}`}
+                              >
+                                史
+                              </div>
+                            )}
                           </td>
                         );
                       })}
@@ -105,7 +139,8 @@ export function LevelStandardTable({ evaluation }: Props) {
               </tbody>
             </table>
             <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 8 }}>
-              ⬛ 高亮: 你当前所在格 · 颜色与左侧徽章一致
+              ⬛ 实色高亮 = 近 90 天所在格 (颜色与左侧徽章一致)
+              {historical && " · ⬜ 虚线边框 + 「史」标 = 历史最佳所在格 (与近期相同则不重复标记)"}
             </p>
           </div>
 

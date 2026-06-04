@@ -68,7 +68,7 @@ export default async function LevelPage() {
 
       <EtaPredictionCard eta={eta} nextLabel={ftpNextLabel} />
 
-      <LevelStandardTable evaluation={evaluation} />
+      <LevelStandardTable evaluation={evaluation} historical={historical} />
 
       <div style={{ textAlign: "center", padding: 12 }}>
         <Link href="/analytics/pmc" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.88rem" }}>
