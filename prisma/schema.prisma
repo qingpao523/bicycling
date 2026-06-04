@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AppConfig {
+  id                    Int      @id
+  appName               String
+  authMode              String
+  maintenanceMode       Boolean  @default(false)
+  maintenanceMessage    String?
+  featureRidePlans      Boolean
+  featureRecovery       Boolean
+  featureAiReview       Boolean
+  featureIntervalsSync  Boolean
+  aiEnabled             Boolean
+  aiBaseUrl             String?
+  aiApiKeyEncrypted     String?
+  aiModel               String?
+  aiSystemPrompt        String?
+  developmentVersion    String    @default("0.1.1-dev")
+  productionVersion     String    @default("0.1.0")
+  autoSyncEnabled       Boolean   @default(false)
+  autoSyncIntervalHours Int       @default(6)
+  autoSyncIntervals     Boolean   @default(true)
+  autoSyncStrava        Boolean   @default(true)
+  autoSyncLastRunAt     DateTime?
+  autoSyncLastStatus    String?
+  lastPublishedAt       DateTime?
+  updatedAt             DateTime
+}
+
+model User {
+  id                       String      @id
+  name                     String
+  email                    String      @unique
+  passwordHash             String
+  role                     String
+  weightKg                 Float?
+  ftp                      Int?
+  thresholdHr              Int?
+  maxHr                    Int?
+  restingHr                Int?
+  syncedWeightKg           Float?
+  syncedFtp                Int?
+  syncedThresholdHr        Int?
+  syncedMaxHr              Int?
+  syncedRestingHr          Int?
+  intervalsAthleteId       String?
+  intervalsApiKeyEncrypted String?
+  intervalsRawProfileJson  String?
+  intervalsRawWellnessJson String?
+  stravaAthleteId          String?
+  stravaScopes             String?
+  stravaAuthSource         String?
+  stravaAccessTokenEncrypted String?
+  stravaRefreshTokenEncrypted String?
+  stravaTokenExpiresAt     DateTime?
+  stravaRawAthleteJson     String?
+  stravaPersonalClientId   String?
+  stravaPersonalClientSecretEncrypted String?
+  createdAt                DateTime
+  updatedAt                DateTime
+  sessions                 Session[]
+  ridePlans                RidePlan[]
+  activities               Activity[]
+  syncJobs                 SyncJob[]
+  aiReports                AiReport[]
+  aiChatMessages           AiChatMessage[]
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RidePlan {
+  id                  String    @id
+  userId              String
+  distanceKm          Float
+  elevationM          Int
+  expectedSpeedKmh    Float?
+  expectedDurationMin Int?
+  rideType            String
+  temperatureC        Int?
+  isHotHumid          Boolean
+  hasResupply         Boolean
+  weightKg            Float?
+  breakfastStatus     String
+  fuelPreference      String
+  caffeineAccepted    Boolean
+  notes               String?
+  createdAt           DateTime
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fuelPlan            FuelPlan?
+
+  @@index([userId, createdAt])
+}
+
+model FuelPlan {
+  id                     String   @id
+  ridePlanId             String   @unique
+  estimatedDurationMin   Int
+  loadLevel              String
+  strategyLevel          String
+  carbTargetGPerH        Int
+  fluidTargetMlPerH      Int
+  sodiumTargetMgPerH     Int
+  gelCount               Int
+  electrolyteBottleCount Int
+  summary                String
+  carryingListJson       String
+  timelineJson           String
+  riskFlagsJson          String
+  createdAt              DateTime
+  ridePlan               RidePlan @relation(fields: [ridePlanId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id               String    @id
+  userId           String
+  source           String
+  externalActivityId String
+  name             String
+  startTime        DateTime
+  distanceKm       Float
+  movingTimeMin    Int
+  elevationM       Int
+  avgSpeedKmh      Float
+  avgHr            Int?
+  avgPower         Int?
+  np               Int?
+  ifValue          Float?
+  tss              Int?
+  temperatureC     Int?
+  recentCtl        Int?
+  recentAtl        Int?
+  recentForm       Int?
+  rawSummaryJson   String
+  rawStreamsJson   String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fuelLog          FuelLog?
+  aiReport         AiReport?
+  aiChatMessages   AiChatMessage[]
+  aliases          ActivityAlias[]
+
+  @@unique([userId, externalActivityId])
+  @@index([userId, startTime])
+}
+
+model ActivityAlias {
+  id                 String   @id
+  userId             String
+  activityId         String
+  source             String
+  externalActivityId String
+  startTime          DateTime
+  rawSummaryJson     String
+  createdAt          DateTime
+  updatedAt          DateTime
+  activity           Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, externalActivityId])
+  @@index([userId, activityId])
+}
+
+model SyncJob {
+  id             String   @id
+  userId         String?
+  source         String
+  jobType        String
+  status         String
+  reason         String?
+  externalRef    String?
+  payloadJson    String?
+  availableAt    DateTime
+  claimedAt      DateTime?
+  processedAt    DateTime?
+  attempts       Int      @default(0)
+  lastError      String?
+  createdAt      DateTime
+  updatedAt      DateTime
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([source, jobType, externalRef])
+  @@index([status, availableAt])
+  @@index([userId, source, status])
+}
+
+model FuelLog {
+  id                    String   @id
+  activityId            String   @unique
+  gelCountActual        Int
+  doubleGelCountActual  Int      @default(0)
+  caffeineGelCountActual Int     @default(0)
+  saltCapsuleCountActual Int     @default(0)
+  carbOtherGrams        Int      @default(0)
+  waterMlActual         Int
+  electrolyteUsed       Boolean
+  carbOtherDesc         String?
+  fatigueScore          Int
+  legFatigueScore       Int
+  symptomsJson          String
+  createdAt             DateTime
+  updatedAt             DateTime
+  activity              Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model AiReport {
+  id             String   @id
+  activityId     String   @unique
+  userId         String
+  reviewText     String
+  recoveryText   String
+  fuelReviewText String
+  model          String
+  generatedAt    DateTime
+  activity       Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, generatedAt])
+}
+
+model AiChatMessage {
+  id         String   @id
+  activityId String
+  userId     String
+  role       String
+  content    String
+  createdAt  DateTime
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AnalyticsAiReport {
+  id           String   @id
+  userId       String   @unique
+  reportJson   String
+  contextJson  String
+  model        String
+  generatedAt  DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  @@index([userId, generatedAt])
+}
+
+model AnalyticsAiChatMessage {
+  id         String   @id
+  userId     String
+  role       String
+  content    String
+  createdAt  DateTime
+
+  @@index([userId, createdAt])
+}

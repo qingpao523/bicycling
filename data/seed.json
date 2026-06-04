@@ -1,0 +1,33 @@
+{
+  "appConfig": {
+    "appName": "AI 骑行助手",
+    "authMode": "invite_only",
+    "maintenanceMode": false,
+    "maintenanceMessage": "系统正在维护中，请稍后再试。",
+    "featureRidePlans": true,
+    "featureRecovery": true,
+    "featureAiReview": true,
+    "featureIntervalsSync": true,
+    "aiEnabled": false,
+    "aiBaseUrl": "https://api.openai.com/v1/chat/completions",
+    "aiModel": "gpt-4o-mini",
+    "aiSystemPrompt": "你是一名懂骑行训练、补给和恢复的 AI 助手。你会基于结构化输入，输出具体、专业、保守、不夸张的中文建议。",
+    "developmentVersion": "0.1.1-dev",
+    "productionVersion": "0.1.0",
+    "autoSyncEnabled": false,
+    "autoSyncIntervalHours": 6,
+    "autoSyncIntervals": true,
+    "autoSyncStrava": true,
+    "autoSyncLastRunAt": null,
+    "autoSyncLastStatus": null,
+    "lastPublishedAt": null,
+    "updatedAt": "2026-03-15T00:00:00.000Z"
+  },
+  "users": [],
+  "sessions": [],
+  "ridePlans": [],
+  "fuelPlans": [],
+  "activities": [],
+  "fuelLogs": [],
+  "aiReports": []
+}

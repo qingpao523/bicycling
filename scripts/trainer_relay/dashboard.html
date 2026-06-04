@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚴 Trainer Power Relay - 控制台</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d2991d;
+    --red: #f85149;
+    --purple: #a371f7;
+    --cyan: #39d2c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  #conn-status { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+  #conn-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    transition: background 0.3s;
+  }
+  #conn-dot.online { background: var(--green); }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto;
+    gap: 20px;
+  }
+  @media (max-width: 720px) { main { grid-template-columns: 1fr; } }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .section h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── 数据面板 ── */
+  .metrics {
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+  }
+  .metric-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-card .value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .metric-card .unit {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+  .metric-card .label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .metric-card .sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .power-raw .value { color: var(--muted); }
+  .power-mod .value { color: var(--accent); }
+  .cadence .value  { color: var(--cyan); }
+  .speed .value    { color: var(--green); }
+  .hr .value       { color: var(--red); }
+
+  /* ── 图表 ── */
+  .chart-section {
+    grid-column: 1;
+    min-height: 220px;
+  }
+  #powerChart { width: 100%; height: 200px; display: block; }
+
+  /* ── 控制面板 ── */
+  .control-section {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .control-section .mode-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .control-section .mode-btn {
+    padding: 10px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .control-section .mode-btn:hover { border-color: var(--accent); }
+  .control-section .mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(88,166,255,0.12);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .param-group { margin-bottom: 14px; }
+  .param-group label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .param-group input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .param-group input:focus { border-color: var(--accent); }
+  .param-group input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .range-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .range-row input[type=range] { flex: 1; }
+
+  .btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .presets { margin-top: 16px; }
+  .presets h4 { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+  .preset-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .preset-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.25s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.ok  { background: #1b3824; border: 1px solid var(--green); color: var(--green); }
+  .toast.err { background: #3a1a1a; border: 1px solid var(--red); color: var(--red); }
+
+  .server-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .server-input input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.8rem;
+    outline: none;
+  }
+  .server-input input:focus { border-color: var(--accent); }
+  .server-input button {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .server-input button:hover { border-color: var(--accent); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  .mode-desc {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 2px;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚴 Trainer Power Relay</h1>
+  <div id="conn-status">
+    <span id="conn-dot"></span>
+    <span id="conn-text">未连接</span>
+  </div>
+</header>
+
+<main>
+  <!-- 数据面板 -->
+  <section class="section metrics" id="metrics-panel">
+    <div class="metric-card power-raw">
+      <div class="value" id="v-raw-power">--<span class="unit">W</span></div>
+      <div class="label">原始功率</div>
+    </div>
+    <div class="metric-card power-mod">
+      <div class="value" id="v-mod-power">--<span class="unit">W</span></div>
+      <div class="label">修改后功率</div>
+      <div class="sub" id="v-mode-label"></div>
+    </div>
+    <div class="metric-card cadence">
+      <div class="value" id="v-cadence">--<span class="unit">rpm</span></div>
+      <div class="label">踏频</div>
+    </div>
+    <div class="metric-card speed">
+      <div class="value" id="v-speed">--<span class="unit">km/h</span></div>
+      <div class="label">速度</div>
+    </div>
+    <div class="metric-card hr">
+      <div class="value" id="v-hr">--<span class="unit">bpm</span></div>
+      <div class="label">心率</div>
+    </div>
+  </section>
+
+  <!-- 功率折线图 -->
+  <section class="section chart-section">
+    <h3>功率历史 (最近 60 秒)</h3>
+    <canvas id="powerChart"></canvas>
+  </section>
+
+  <!-- 控制面板 -->
+  <section class="section control-section">
+    <h3>⚙️ 功率修改控制</h3>
+
+    <!-- 服务器连接 -->
+    <div class="server-input">
+      <input type="text" id="server-url" value="127.0.0.1:8765" placeholder="服务器地址:端口">
+      <button id="btn-connect">连接</button>
+    </div>
+
+    <!-- 模式选择 -->
+    <div class="mode-btns">
+      <button class="mode-btn active" data-mode="passthrough">直通</button>
+      <button class="mode-btn" data-mode="multiplier">乘系数</button>
+      <button class="mode-btn" data-mode="offset">偏移</button>
+      <button class="mode-btn" data-mode="fixed">固定</button>
+    </div>
+
+    <!-- 参数 -->
+    <div class="param-group">
+      <label>系数 (multiplier)</label>
+      <div class="range-row">
+        <input type="range" id="param-multiplier" min="0.1" max="3.0" step="0.05" value="0.9">
+        <span id="val-multiplier" style="min-width:40px;text-align:right;font-size:0.85rem;">0.90</span>
+      </div>
+      <div class="mode-desc">实际功率 &times; 系数</div>
+    </div>
+
+    <div class="param-group">
+      <label>偏移量 (offset, W)</label>
+      <div class="range-row">
+        <input type="range" id="param-offset" min="-200" max="200" step="5" value="0">
+        <span id="val-offset" style="min-width:40px;text-align:right;font-size:0.85rem;">0</span>
+      </div>
+      <div class="mode-desc">实际功率 + 偏移量</div>
+    </div>
+
+    <div class="param-group">
+      <label>固定功率 (fixed, W)</label>
+      <div class="range-row">
+        <input type="range" id="param-fixed" min="0" max="1000" step="5" value="200">
+        <span id="val-fixed" style="min-width:40px;text-align:right;font-size:0.85rem;">200</span>
+      </div>
+      <div class="mode-desc">始终输出固定功率值</div>
+    </div>
+
+    <hr>
+
+    <button class="btn btn-primary" id="btn-apply">应用配置</button>
+
+    <!-- 快捷预设 -->
+    <div class="presets">
+      <h4>快捷预设</h4>
+      <div class="preset-btns">
+        <button class="preset-btn" data-preset="passthrough">直通 1:1</button>
+        <button class="preset-btn" data-preset="0.7x">打七折 0.7x</button>
+        <button class="preset-btn" data-preset="0.85x">八五折 0.85x</button>
+        <button class="preset-btn" data-preset="1.1x">加一成 1.1x</button>
+        <button class="preset-btn" data-preset="+30W">+30W</button>
+        <button class="preset-btn" data-preset="-20W">-20W</button>
+        <button class="preset-btn" data-preset="150W">固定 150W</button>
+        <button class="preset-btn" data-preset="250W">固定 250W</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── 状态 ──
+let ws = null;
+let reconnectTimer = null;
+let historyMax = 120; // 保留最近 120 个数据点 (60 秒 @ 0.5s)
+let rawHistory = [];
+let modHistory = [];
+let currentMode = 'passthrough';
+
+// ── DOM 引用 ──
+const $ = (id) => document.getElementById(id);
+const connDot = $('conn-dot');
+const connText = $('conn-text');
+const serverUrl = $('server-url');
+const btnConnect = $('btn-connect');
+const btnApply = $('btn-apply');
+const toast = $('toast');
+const canvas = $('powerChart');
+const ctx = canvas.getContext('2d');
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg, ok = true) {
+  toast.textContent = msg;
+  toast.className = 'toast ' + (ok ? 'ok' : 'err') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ── WebSocket ──
+function connect(hostPort) {
+  disconnect();
+  const url = `ws://${hostPort}/ws`;
+  connText.textContent = '连接中...';
+  connDot.className = '';
+
+  ws = new WebSocket(url);
+  ws.onopen = () => {
+    connDot.className = 'online';
+    connText.textContent = '已连接';
+    btnConnect.textContent = '断开';
+    showToast('已连接到 ' + hostPort);
+  };
+  ws.onclose = () => {
+    connDot.className = '';
+    connText.textContent = '已断开';
+    btnConnect.textContent = '连接';
+    ws = null;
+  };
+  ws.onerror = () => {
+    connDot.className = '';
+    connText.textContent = '连接失败';
+    ws = null;
+  };
+  ws.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      updateMetrics(d);
+      updateChart(d);
+    } catch (_) {}
+  };
+}
+
+function disconnect() {
+  clearTimeout(reconnectTimer);
+  if (ws) {
+    ws.onclose = null; // 避免触发 reconnect
+    ws.close();
+    ws = null;
+  }
+  connDot.className = '';
+  connText.textContent = '未连接';
+  btnConnect.textContent = '连接';
+}
+
+btnConnect.addEventListener('click', () => {
+  if (ws) {
+    disconnect();
+  } else {
+    connect(serverUrl.value.trim() || '127.0.0.1:8765');
+  }
+});
+
+// 回车连接
+serverUrl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') connect(serverUrl.value.trim() || '127.0.0.1:8765');
+});
+
+// ── 数据更新 ──
+function updateMetrics(d) {
+  $('v-raw-power').innerHTML = d.raw.power + '<span class="unit">W</span>';
+  $('v-mod-power').innerHTML = d.modified.power + '<span class="unit">W</span>';
+  $('v-cadence').innerHTML = (d.modified.cadence || 0).toFixed(0) + '<span class="unit">rpm</span>';
+  $('v-speed').innerHTML = (d.modified.speed || 0).toFixed(1) + '<span class="unit">km/h</span>';
+  $('v-hr').innerHTML = (d.modified.heart_rate || '--') + '<span class="unit">bpm</span>';
+
+  const mode = d.modification_mode || 'passthrough';
+  const labels = { passthrough: '直通模式', multiplier: '乘系数', offset: '偏移', fixed: '固定' };
+  $('v-mode-label').textContent = labels[mode] || mode;
+
+  if (currentMode !== mode) {
+    currentMode = mode;
+    highlightModeButton(mode);
+  }
+}
+
+// ── 图表 ──
+function updateChart(d) {
+  if (d.raw.power !== undefined) rawHistory.push(d.raw.power);
+  if (d.modified.power !== undefined) modHistory.push(d.modified.power);
+  if (rawHistory.length > historyMax) rawHistory.shift();
+  if (modHistory.length > historyMax) modHistory.shift();
+  drawChart();
+}
+
+function drawChart() {
+  const W = canvas.width = canvas.parentElement.clientWidth - 40;
+  const H = canvas.height = 200;
+  if (rawHistory.length < 2) return;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 40, padR = 16, padT = 12, padB = 28;
+  const pw = W - padL - padR;
+  const ph = H - padT - padB;
+
+  // 计算 Y 轴范围
+  const all = rawHistory.concat(modHistory);
+  const max = Math.max(...all, 10);
+  const min = Math.min(...all, 0);
+  const range = max - min || 100;
+  const yMax = max + range * 0.15;
+  const yMin = Math.max(0, min - range * 0.15);
+
+  const xScale = (i) => padL + (i / (historyMax - 1)) * pw;
+  const yScale = (v) => padT + ph - ((v - yMin) / (yMax - yMin)) * ph;
+
+  // 网格
+  ctx.strokeStyle = 'rgba(48,54,61,0.5)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ph / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    const val = Math.round(yMax - ((yMax - yMin) / 4) * i);
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px monospace';
+    ctx.fillText(val, 2, y + 3);
+  }
+
+  // 折线 - 原始功率
+  ctx.strokeStyle = 'rgba(139,148,158,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  rawHistory.forEach((v, i) => {
+    const x = xScale(i), y = yScale(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 折线 - 修改后功率
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(88,166,255,0.3)';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  modHistory.forEach((v, i) => {
+    const x = xScale(i), y = yScale(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 图例
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#8b949e';
+  ctx.fillText('— 原始', padL + 4, padT + ph + 16);
+  ctx.fillStyle = '#58a6ff';
+  ctx.fillText('— 修改后', padL + 60, padT + ph + 16);
+}
+
+window.addEventListener('resize', drawChart);
+
+// ── 模式按钮 ──
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateParamState(btn.dataset.mode);
+  });
+});
+
+function highlightModeButton(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  updateParamState(mode);
+}
+
+function updateParamState(mode) {
+  const m = $('param-multiplier');
+  const o = $('param-offset');
+  const f = $('param-fixed');
+  m.disabled = mode !== 'multiplier';
+  o.disabled = mode !== 'offset';
+  f.disabled = mode !== 'fixed';
+}
+
+// 滑块联动显示
+$('param-multiplier').addEventListener('input', function() {
+  $('val-multiplier').textContent = parseFloat(this.value).toFixed(2);
+});
+$('param-offset').addEventListener('input', function() {
+  $('val-offset').textContent = parseInt(this.value);
+});
+$('param-fixed').addEventListener('input', function() {
+  $('val-fixed').textContent = parseInt(this.value);
+});
+
+// ── 应用配置 ──
+btnApply.addEventListener('click', async () => {
+  const activeMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'passthrough';
+  const hostPort = serverUrl.value.trim() || '127.0.0.1:8765';
+  const apiUrl = `http://${hostPort}/api/config`;
+
+  const body = {
+    power_modification: {
+      mode: activeMode,
+      multiplier: parseFloat($('param-multiplier').value),
+      offset: parseInt($('param-offset').value),
+      fixed: parseInt($('param-fixed').value),
+    }
+  };
+
+  try {
+    const resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (resp.ok) {
+      currentMode = activeMode;
+      const labels = { passthrough: '直通', multiplier: '乘系数', offset: '偏移', fixed: '固定' };
+      showToast(`配置已应用: ${labels[activeMode] || activeMode}`);
+    } else {
+      showToast('配置失败: ' + resp.status, false);
+    }
+  } catch (err) {
+    showToast('无法连接服务器: ' + err.message, false);
+  }
+});
+
+// ── 快捷预设 ──
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = btn.dataset.preset;
+    switch (preset) {
+      case 'passthrough':
+        selectMode('passthrough'); break;
+      case '0.7x':
+        selectMode('multiplier'); $('param-multiplier').value = 0.7; $('val-multiplier').textContent = '0.70'; break;
+      case '0.85x':
+        selectMode('multiplier'); $('param-multiplier').value = 0.85; $('val-multiplier').textContent = '0.85'; break;
+      case '1.1x':
+        selectMode('multiplier'); $('param-multiplier').value = 1.1; $('val-multiplier').textContent = '1.10'; break;
+      case '+30W':
+        selectMode('offset'); $('param-offset').value = 30; $('val-offset').textContent = '30'; break;
+      case '-20W':
+        selectMode('offset'); $('param-offset').value = -20; $('val-offset').textContent = '-20'; break;
+      case '150W':
+        selectMode('fixed'); $('param-fixed').value = 150; $('val-fixed').textContent = '150'; break;
+      case '250W':
+        selectMode('fixed'); $('param-fixed').value = 250; $('val-fixed').textContent = '250'; break;
+    }
+    btnApply.click();
+  });
+});
+
+function selectMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  updateParamState(mode);
+}
+
+// ── 初始化 ──
+updateParamState('passthrough');
+drawChart();
+
+// 自动尝试连接 (页面加载后)
+setTimeout(() => {
+  const hp = serverUrl.value.trim() || '127.0.0.1:8765';
+  connect(hp);
+}, 600);
+</script>
+</body>
+</html>

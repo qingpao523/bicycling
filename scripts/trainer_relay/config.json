@@ -1,0 +1,26 @@
+{
+    "trainer": {
+        "name": null,
+        "address": null,
+        "scan_timeout": 10,
+        "reconnect_interval": 5
+    },
+    "power_modification": {
+        "mode": "multiplier",
+        "multiplier": 0.9,
+        "offset": 0,
+        "fixed": 200,
+        "min_power": 0,
+        "max_power": 2000
+    },
+    "server": {
+        "host": "127.0.0.1",
+        "port": 8765,
+        "data_interval_ms": 250
+    },
+    "logging": {
+        "level": "INFO",
+        "csv_output": false,
+        "csv_path": "./data_log.csv"
+    }
+}
