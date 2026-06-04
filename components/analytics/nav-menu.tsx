@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Activity,
+  Award,
   BarChart3,
   Battery,
   Brain,
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/analytics/pmc", label: "PMC", icon: LineChart },
   { href: "/analytics/power-curve", label: "功率曲线", icon: Zap },
   { href: "/analytics/power-profile", label: "功率形态", icon: Target },
+  { href: "/analytics/level", label: "能力水位", icon: Award },
   { href: "/analytics/fatigue", label: "疲劳形态", icon: Activity },
   { href: "/analytics/recovery", label: "状态恢复", icon: Heart },
   { href: "/analytics/data", label: "数据分析", icon: BarChart3 },
