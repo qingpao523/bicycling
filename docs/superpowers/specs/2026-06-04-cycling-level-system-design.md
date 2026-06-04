@@ -8,6 +8,15 @@
 - **修订**：
   - 2026-06-04 v1 初稿
   - 2026-06-04 v2 加入 §7.6 分级标准透明度 (level-standard-table)
+  - 2026-06-04 v3 用户反馈 3 项改造:
+    1. **历史维度叠加**: evaluateLevel 加 `scope: "recent" | "historical"`, page 双调,
+       LevelRadar 加淡层 (虚线) + LevelProgress 加历史峰值三角标记
+    2. **木桶短板法 → 最强项法**: `Math.min` → `Math.max`, `bottlenecks` → `topDimensions`,
+       新增 `improvable` (低于 max 的维度, 训练计划目标)。
+       理由: 业余车手专精某项, 单维度缺失不应判 L0; 最强项更代表真实水位
+    3. **段位徽章位置**: 拿掉 absolute 中心定位, 改放雷达下方独立 chip,
+       不再遮挡数据形状
+    AI prompt 同步改"代表水位"叙述; ai-analytics.ts 用 topDimensions/improvable
 
 ---
 

@@ -4,24 +4,34 @@
 import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
 import { DIMENSIONS, DIMENSION_META, LEVEL_TABLE, LEVEL_NAMES, LEVEL_COLOR_BUCKET, LEVEL_BG } from "@/lib/engine/cycling-levels";
 
-type Props = { evaluation: LevelEvaluation };
+type Props = {
+  evaluation: LevelEvaluation;             // 主层: 近 90 天
+  historical?: LevelEvaluation | null;     // 历史峰值标记 (可选)
+};
 
-export function LevelProgress({ evaluation }: Props) {
+export function LevelProgress({ evaluation, historical }: Props) {
   return (
     <div className="analytics-card">
       <div className="analytics-card-header">
         <h2>6 维能力进度</h2>
-        <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>悬停阈值线查看段位</span>
+        <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+          {historical ? "实色 = 近 90 天 · 灰色标记 = 历史最高" : "悬停阈值线查看段位"}
+        </span>
       </div>
 
       <div style={{ display: "grid", gap: 20 }}>
         {DIMENSIONS.map((dim) => {
           const ev = evaluation.byDimension[dim];
+          const histEv = historical?.byDimension[dim];
           const meta = DIMENSION_META[dim];
           const thresholds = LEVEL_TABLE[dim];
           const maxValue = thresholds[11] * 1.05;
           const currentPct = ev.value !== null ? Math.min((ev.value / maxValue) * 100, 100) : 0;
+          const histPct = histEv?.value != null ? Math.min((histEv.value / maxValue) * 100, 100) : null;
           const color = LEVEL_BG[LEVEL_COLOR_BUCKET(ev.level ?? 0)];
+          const histColor = histEv?.level != null
+            ? LEVEL_BG[LEVEL_COLOR_BUCKET(histEv.level)]
+            : "#94a3b8";
 
           return (
             <div key={dim}>
@@ -75,6 +85,26 @@ export function LevelProgress({ evaluation }: Props) {
                   />
                 )}
 
+                {/* 历史峰值三角标记 (仅当历史比近期高才显示, 防重叠) */}
+                {histPct !== null && histPct > currentPct + 1 && (
+                  <div
+                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (${histEv!.label} L${histEv!.level})`}
+                    style={{
+                      position: "absolute",
+                      left: `${histPct}%`,
+                      top: -6,
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "5px solid transparent",
+                      borderRight: "5px solid transparent",
+                      borderTop: `6px solid ${histColor}`,
+                      opacity: 0.7,
+                      cursor: "help",
+                    }}
+                  />
+                )}
+
                 {/* 12 段位阈值刻度 */}
                 {thresholds.map((t, i) => {
                   if (i === 0) return null;
@@ -97,13 +127,19 @@ export function LevelProgress({ evaluation }: Props) {
                 })}
               </div>
 
-              {/* 距下一级提示 */}
-              {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0 && (
-                <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 4 }}>
-                  ▶ 距 {ev.nextLabel} 还差 {ev.gapValue.toFixed(2)} {meta.unit}
-                  {ev.gapWatts !== undefined && ` (~${ev.gapWatts} W)`}
-                </div>
-              )}
+              {/* 距下一级提示 + 历史峰值差距 */}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 4, fontSize: "0.75rem", color: "var(--muted)" }}>
+                <span>
+                  {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0
+                    ? `▶ 距 ${ev.nextLabel} 还差 ${ev.gapValue.toFixed(2)} ${meta.unit}${ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""}`
+                    : ""}
+                </span>
+                {histPct !== null && histPct > currentPct + 1 && (
+                  <span style={{ opacity: 0.7 }}>
+                    ◣ 历史最高 {histEv!.value!.toFixed(2)} {meta.unit} (L{histEv!.level})
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}

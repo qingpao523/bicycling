@@ -34,7 +34,9 @@ export default async function LevelPage() {
     );
   }
 
-  const evaluation = evaluateLevel({ activities, user });
+  // 双调: 近 90 天 (主) + 全历史 (淡层对比)
+  const evaluation = evaluateLevel({ activities, user, scope: "recent", windowDays: 90 });
+  const historical = evaluateLevel({ activities, user, scope: "historical" });
   const upgradePlan = generateUpgradePlan(evaluation);
   const pmcSeries = calculatePmc(activities);
   const eta = predictEta(evaluation, pmcSeries);
@@ -47,7 +49,7 @@ export default async function LevelPage() {
       <header>
         <h1 style={{ margin: 0 }}>🚴 能力水位</h1>
         <p style={{ color: "var(--muted)", margin: "4px 0 0" }}>
-          基于近 90 天 ({evaluation.dataWindow.activityCount} 条活动) · 木桶短板法
+          近 90 天 ({evaluation.dataWindow.activityCount} 条) vs 全历史 ({historical.dataWindow.activityCount} 条) · 最强项法
         </p>
       </header>
 
@@ -58,8 +60,8 @@ export default async function LevelPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <LevelRadar evaluation={evaluation} />
-        <LevelProgress evaluation={evaluation} />
+        <LevelRadar evaluation={evaluation} historical={historical} />
+        <LevelProgress evaluation={evaluation} historical={historical} />
       </div>
 
       <UpgradePathCard plan={upgradePlan} />

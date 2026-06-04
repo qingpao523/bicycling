@@ -89,12 +89,14 @@ export type UpgradePlan = {
 };
 
 export function generateUpgradePlan(evalResult: LevelEvaluation): UpgradePlan {
-  if (!evalResult.overall.bottlenecks.length) {
+  // v2 改: 训练计划目标 = improvable 维度 (仍低于综合段位的项, 有提升空间)
+  // 若无 improvable 项 (所有维度都达 max level), 说明全面达标
+  if (!evalResult.overall.improvable.length) {
     return { skip: "已经全面达标, 继续巩固即可" };
   }
 
-  const target = PRIORITY.find((d) => evalResult.overall.bottlenecks.includes(d));
-  if (!target) return { skip: "无可优化短板" };
+  const target = PRIORITY.find((d) => evalResult.overall.improvable.includes(d));
+  if (!target) return { skip: "无可优化维度" };
 
   const rule = TRAINING_RULES[target];
   const block = rule.aliasOf ? TRAINING_RULES[rule.aliasOf] : rule;
