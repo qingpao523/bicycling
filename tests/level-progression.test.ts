@@ -2,26 +2,28 @@ import { describe, it, expect } from "vitest";
 import { generateUpgradePlan, TRAINING_RULES } from "@/lib/engine/level-progression";
 import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
 
-function mkEval(overrideBottlenecks: string[], overallLevel = 2): LevelEvaluation {
+// v2: 训练计划目标改为 improvable (低于综合段位的项), 不再叫 bottlenecks
+function mkEval(improvable: string[], overallLevel = 2, topDimensions: string[] = []): LevelEvaluation {
   return {
     byDimension: {} as any,
     overall: {
       level: overallLevel,
       label: "test",
-      bottlenecks: overrideBottlenecks as any,
+      topDimensions: topDimensions as any,
+      improvable: improvable as any,
     },
-    dataWindow: { startDate: "", endDate: "", activityCount: 10 },
+    dataWindow: { startDate: "", endDate: "", activityCount: 10, scope: "recent" },
     warnings: [],
   };
 }
 
 describe("generateUpgradePlan", () => {
-  it("无短板 → 返回 skip", () => {
+  it("无 improvable → 返回 skip", () => {
     const plan = generateUpgradePlan(mkEval([]));
     expect(plan.skip).toBeTruthy();
   });
 
-  it("FTP 单短板 → 选 ftp_20min 训练块", () => {
+  it("FTP 单 improvable → 选 ftp_20min 训练块", () => {
     const plan = generateUpgradePlan(mkEval(["ftp_20min"]));
     expect(plan.targetDimension).toBe("ftp_20min");
     expect(plan.block?.name).toContain("FTP");

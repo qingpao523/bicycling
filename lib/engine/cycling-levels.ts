@@ -155,18 +155,23 @@ export type LevelEvaluation = {
   overall: {
     level: number;
     label: string;
-    bottlenecks: Dimension[];      // 所有 level === overall.level 的维度 (≠ null)
+    // 最高 level 的维度集合 — 你的"代表水位"由这些维度决定
+    topDimensions: Dimension[];
+    // 仍低于 overall.level 的维度 (有提升空间, 用于训练计划)
+    improvable: Dimension[];
   };
   dataWindow: {
     startDate: string;
     endDate: string;
     activityCount: number;
+    scope: "recent" | "historical";  // 区分近期窗口 vs 全历史
   };
   warnings: string[];
 };
 
-const WINDOW_DAYS = 90;
+const DEFAULT_WINDOW_DAYS = 90;
 const MIN_ACTIVITIES = 5;
+const MIN_VALID_DIMENSIONS_FOR_OVERALL = 2;  // 至少 2 个维度有数据才评 overall, 防单维度异常拉飞
 
 function estimateVo2max(ftpWatts: number | undefined, weightKg: number | undefined): number | undefined {
   if (!ftpWatts || !weightKg || weightKg <= 0) return undefined;
@@ -174,14 +179,38 @@ function estimateVo2max(ftpWatts: number | undefined, weightKg: number | undefin
   return Math.round((ftpWatts * 10.8) / weightKg + 7);
 }
 
-export function evaluateLevel(input: { activities: Activity[]; user: User }): LevelEvaluation {
+/**
+ * 评定用户骑行能力段位
+ * @param input.scope "recent" (默认) 用 windowDays 滑动窗口; "historical" 全历史
+ * @param input.windowDays 仅 scope="recent" 时生效, 默认 90 天
+ *
+ * 评定规则 (从 v1 木桶短板法改为最强项法):
+ * - overall.level = 有数据维度中的最高 level (业余车手往往专精某项, 用最高代表水位)
+ * - overall.topDimensions = 所有 level === max 的维度
+ * - overall.improvable = 仍低于 max 的维度 (训练计划目标)
+ * - 至少 2 个维度有数据才评 overall, 否则给 warning
+ */
+export function evaluateLevel(input: {
+  activities: Activity[];
+  user: User;
+  scope?: "recent" | "historical";
+  windowDays?: number;
+}): LevelEvaluation {
   const { activities, user } = input;
+  const scope: "recent" | "historical" = input.scope ?? "recent";
+  const windowDays = input.windowDays ?? DEFAULT_WINDOW_DAYS;
   const warnings: string[] = [];
 
-  // 1. 时间窗口过滤
+  // 1. 时间窗口过滤 (historical 取全部)
   const endDate = new Date();
-  const startDate = new Date(endDate.getTime() - WINDOW_DAYS * 86400000);
-  const windowActs = activities.filter((a) => new Date(a.startTime) >= startDate);
+  const startDate =
+    scope === "historical"
+      ? new Date(0)  // epoch 起点, 全历史
+      : new Date(endDate.getTime() - windowDays * 86400000);
+  const windowActs =
+    scope === "historical"
+      ? activities
+      : activities.filter((a) => new Date(a.startTime) >= startDate);
 
   // 2. 数据量校验
   if (windowActs.length < MIN_ACTIVITIES) {
@@ -227,24 +256,34 @@ export function evaluateLevel(input: { activities: Activity[]; user: User }): Le
     {} as Record<Dimension, DimensionEvaluation>,
   );
 
-  // 8. 木桶: 综合段位 = 有数据维度的最低 level (null 维度跳过)
+  // 8. 最强项法: 综合段位 = 有数据维度的最高 level
   const validLevels = DIMENSIONS.map((d) => byDimension[d].level).filter(
     (l): l is number => l !== null,
   );
-  const overallLevel = validLevels.length ? Math.min(...validLevels) : 0;
-  const bottlenecks = DIMENSIONS.filter((d) => byDimension[d].level === overallLevel);
+
+  if (validLevels.length < MIN_VALID_DIMENSIONS_FOR_OVERALL) {
+    warnings.push(`仅 ${validLevels.length} 个维度有数据 (需至少 ${MIN_VALID_DIMENSIONS_FOR_OVERALL} 个才评综合段位)`);
+  }
+
+  const overallLevel = validLevels.length ? Math.max(...validLevels) : 0;
+  const topDimensions = DIMENSIONS.filter((d) => byDimension[d].level === overallLevel);
+  const improvable = DIMENSIONS.filter(
+    (d) => byDimension[d].level !== null && byDimension[d].level! < overallLevel,
+  );
 
   return {
     byDimension,
     overall: {
       level: overallLevel,
       label: LEVEL_NAMES[overallLevel],
-      bottlenecks,
+      topDimensions,
+      improvable,
     },
     dataWindow: {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       activityCount: windowActs.length,
+      scope,
     },
     warnings,
   };

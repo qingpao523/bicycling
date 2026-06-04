@@ -18,8 +18,8 @@ function mkEval(gapWkg: number): LevelEvaluation {
         gapValue: gapWkg,
       },
     } as any,
-    overall: { level: 4, label: "中PRO 入门", bottlenecks: ["ftp_20min"] },
-    dataWindow: { startDate: "", endDate: "", activityCount: 30 },
+    overall: { level: 4, label: "中PRO 入门", topDimensions: ["ftp_20min"], improvable: [] },
+    dataWindow: { startDate: "", endDate: "", activityCount: 30, scope: "recent" },
     warnings: [],
   };
 }

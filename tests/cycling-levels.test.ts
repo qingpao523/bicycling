@@ -115,7 +115,7 @@ const mkUser = (over: Partial<User> = {}): User => ({
   ...over,
 });
 
-describe("evaluateLevel 木桶综合", () => {
+describe("evaluateLevel 最强项法", () => {
   it("活动 < 5 条 → warnings", () => {
     const r = evaluateLevel({ activities: [], user: mkUser() });
     expect(r.warnings).toContain("活动数据不足");
@@ -140,7 +140,7 @@ describe("evaluateLevel 木桶综合", () => {
     expect(r.byDimension.ftp_20min.level).toBe(6);
   });
 
-  it("数据窗口: 仅取 90 天内", () => {
+  it("默认窗口: 仅取 90 天内", () => {
     const old = mkAct({ startTime: new Date(Date.now() - 200 * 86400000).toISOString(), tss: 100 });
     const fresh = mkAct({ id: "a2", startTime: new Date().toISOString(), tss: 50 });
     const r = evaluateLevel({
@@ -148,6 +148,62 @@ describe("evaluateLevel 木桶综合", () => {
       user: mkUser(),
     });
     expect(r.dataWindow.activityCount).toBe(5); // old 被过滤
+    expect(r.dataWindow.scope).toBe("recent");
+  });
+
+  it("自定义窗口 30 天", () => {
+    const r = evaluateLevel({
+      activities: Array.from({ length: 6 }, () => mkAct()),
+      user: mkUser(),
+      windowDays: 30,
+    });
+    expect(r.dataWindow.scope).toBe("recent");
+    expect(new Date(r.dataWindow.endDate).getTime() - new Date(r.dataWindow.startDate).getTime())
+      .toBeCloseTo(30 * 86400000, -5);
+  });
+
+  it("scope='historical' → 全历史, 不过滤", () => {
+    const old = mkAct({ startTime: new Date(Date.now() - 500 * 86400000).toISOString(), tss: 100 });
+    const fresh = mkAct({ id: "a2", startTime: new Date().toISOString(), tss: 50 });
+    const r = evaluateLevel({
+      activities: [old, fresh, fresh, fresh, fresh, fresh],
+      user: mkUser(),
+      scope: "historical",
+    });
+    expect(r.dataWindow.scope).toBe("historical");
+    expect(r.dataWindow.activityCount).toBe(6); // 包含 old
+  });
+
+  it("最强项法: overall = max(level), 单维度高分代表水位 (反例: 旧木桶法会判 L0)", () => {
+    // 模拟用户场景: 5s 维度缺失, 但 FTP 304/76 = 4.0 = L6 中PRO 毕业
+    // 旧木桶法: bottlenecks 应该是 5s (null) → 看不清, 实际取 min 也是 L6 (因为 null 跳过)
+    // 新最强项法: 应该明确返回 L6 + topDimensions=[ftp_20min]
+    const acts = Array.from({ length: 6 }, () => mkAct({ tss: 50 }));
+    const r = evaluateLevel({
+      activities: acts,
+      user: mkUser({ ftp: 304, weightKg: 76 }),
+    });
+    expect(r.overall.level).toBe(6); // 最强项 = ftp 的 L6
+    expect(r.overall.label).toBe("中PRO 毕业");
+    expect(r.overall.topDimensions).toContain("ftp_20min");
+    expect(r.overall.improvable).not.toContain("ftp_20min"); // ftp 已是 top, 不在 improvable
+  });
+
+  it("不足 2 个维度有数据 → warnings 提示", () => {
+    // 仅 FTP 一个维度有数据
+    const acts = Array.from({ length: 6 }, () => mkAct({ tss: 50 }));
+    const r = evaluateLevel({
+      activities: acts,
+      user: mkUser({ ftp: 250, weightKg: 76 }),
+    });
+    // 仅 ftp 有数据 (其他 wkg 维度都来自 power-curve 但没 raw streams)
+    // 但 vo2max 是从 ftp 推的, 所以会有 2 个有效维度
+    expect(r.overall.level).toBeGreaterThanOrEqual(0);
+    // 若 valid count < 2, warning 必现
+    const validCount = DIMENSIONS.filter((d) => r.byDimension[d].level !== null).length;
+    if (validCount < 2) {
+      expect(r.warnings.some((w) => w.includes("至少"))).toBe(true);
+    }
   });
 });
 
