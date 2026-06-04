@@ -33,7 +33,18 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    if (error instanceof Error && error.message.includes("redirect")) throw error;
+    // Next.js 15: redirect() throws Error with digest starting "NEXT_REDIRECT"
+    // 必须 rethrow 让 Next.js 转成 307,否则被 catch 吞成 500
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      typeof (error as { digest?: unknown }).digest === "string" &&
+      ((error as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+        (error as { digest: string }).digest.startsWith("NEXT_NOT_FOUND"))
+    ) {
+      throw error;
+    }
     const message = error instanceof Error ? error.message : "评级生成失败";
     return NextResponse.json({ error: message }, { status: 500 });
   }
