@@ -2,16 +2,20 @@ import { dedupeIncomingActivities } from "@/lib/activity-dedupe";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import {
   deleteStravaActivityByExternalRef,
+  enqueueSyncJob,
+  getActivity,
   getLatestActivityAliasStartTime,
   listActivitiesByUser,
   listActivityAliasesByUser,
   saveActivityAlias,
   saveUser,
+  updateActivityStreams,
   upsertActivities,
 } from "@/lib/storage";
 import type { SyncJob, User } from "@/lib/types";
 import {
   fetchStravaActivities,
+  fetchStravaActivityStreams,
   fetchStravaAthlete,
   refreshStravaToken,
   resolveStravaClientCredentials,
@@ -103,6 +107,32 @@ export async function runStravaSync(input: {
   });
 
   await upsertActivities(deduped.accepted);
+
+  // 自动入队 streams backfill (仅 cycling 类活动,跳过 trainer/虚拟 + <10min 短活动)
+  const SHOULD_BACKFILL = (act: (typeof deduped.accepted)[number]) => {
+    const raw = act.rawSummaryJson as Record<string, unknown> | undefined;
+    const type = String(raw?.type ?? raw?.sport_type ?? "").toLowerCase();
+    const isCycling = type.includes("ride") || type.includes("bike") || type.includes("cycl");
+    const tooShort = act.movingTimeMin < 10;
+    return isCycling && !tooShort;
+  };
+
+  const backfillBatch = deduped.accepted.filter(SHOULD_BACKFILL);
+  for (let i = 0; i < backfillBatch.length; i++) {
+    const act = backfillBatch[i];
+    // 每条间隔 6 秒,避免 Strava 限流 (100/15min ≈ 1 per 9s, 6s 留余裕)
+    const availableAt = new Date(Date.now() + i * 6000).toISOString();
+    await enqueueSyncJob({
+      userId: input.user.id,
+      source: "strava",
+      jobType: "stream_backfill",
+      reason: "auto_after_sync",
+      externalRef: `${act.externalActivityId}:streams`,
+      payload: { activityId: act.id, externalActivityId: act.externalActivityId },
+      availableAt,
+    });
+  }
+
   await Promise.all(
     deduped.skipped.map((item) =>
       saveActivityAlias({
@@ -123,6 +153,7 @@ export async function runStravaSync(input: {
     total: activities.length,
     inserted: deduped.accepted.length,
     skipped: deduped.skipped.length,
+    streamBackfillEnqueued: backfillBatch.length,
   };
 }
 
@@ -134,4 +165,26 @@ export async function handleStravaDeleteJob(user: User, job: SyncJob) {
   }
 
   return await deleteStravaActivityByExternalRef(user.id, externalActivityId);
+}
+
+export async function handleStravaStreamBackfillJob(user: User, job: SyncJob) {
+  const activityId = typeof job.payload?.activityId === "string" ? job.payload.activityId : undefined;
+  const externalActivityId =
+    typeof job.payload?.externalActivityId === "string" ? job.payload.externalActivityId : undefined;
+  if (!activityId || !externalActivityId) {
+    throw new Error("stream_backfill 任务缺少 activityId/externalActivityId。");
+  }
+
+  // 跳过已有 streams 的
+  const existing = await getActivity(activityId);
+  if (!existing) return { skipped: "活动不存在" };
+  const existingStreams = existing.rawStreamsJson as Record<string, unknown> | undefined;
+  if (existingStreams && Object.keys(existingStreams).length > 0) {
+    return { skipped: "已存在 streams" };
+  }
+
+  const { accessToken } = await resolveStravaAccessToken(user);
+  const streams = await fetchStravaActivityStreams(externalActivityId, accessToken);
+  await updateActivityStreams(activityId, streams);
+  return { fetched: true, keys: Object.keys(streams) };
 }

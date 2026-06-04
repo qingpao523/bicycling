@@ -1,6 +1,6 @@
 import { getAppConfig, getUserById, listUsers, listUsersWithRecentActivity, markSyncJobDone, markSyncJobFailed, claimAvailableSyncJobs, updateAppConfig } from "@/lib/storage";
-import { runIntervalsSync } from "@/lib/intervals-sync";
-import { handleStravaDeleteJob, runStravaSync } from "@/lib/strava-sync";
+import { handleIntervalsStreamBackfillJob, runIntervalsSync } from "@/lib/intervals-sync";
+import { handleStravaDeleteJob, handleStravaStreamBackfillJob, runStravaSync } from "@/lib/strava-sync";
 
 function envValue(name: string) {
   const value = process.env[name]?.trim();
@@ -34,7 +34,11 @@ export async function processPendingSyncJobs(limit = 10) {
       }
 
       let detail: Record<string, unknown>;
-      if (job.source === "strava" && job.jobType === "delete") {
+      if (job.source === "strava" && job.jobType === "stream_backfill") {
+        detail = await handleStravaStreamBackfillJob(user, job);
+      } else if (job.source === "intervals.icu" && job.jobType === "stream_backfill") {
+        detail = await handleIntervalsStreamBackfillJob(user, job);
+      } else if (job.source === "strava" && job.jobType === "delete") {
         detail = await handleStravaDeleteJob(user, job);
       } else if (job.source === "strava") {
         const after =
