@@ -71,7 +71,7 @@ export default async function LevelPage() {
       <LevelStandardTable evaluation={evaluation} historical={historical} />
 
       <div style={{ textAlign: "center", padding: 12 }}>
-        <Link href="/analytics/pmc" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.88rem" }}>
+        <Link href="/analytics#pmc-chart" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.88rem" }}>
           → 查看 PMC 趋势详情
         </Link>
       </div>

@@ -69,7 +69,7 @@ export function ActivitiesStateCard({ pmc, state }: Props) {
         </div>
       )}
 
-      <Link href="/analytics/pmc" className="button">
+      <Link href="/analytics#pmc-chart" className="button">
         查看完整 PMC <ChevronRight size={14} />
       </Link>
     </div>
