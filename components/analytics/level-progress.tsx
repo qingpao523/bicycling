@@ -39,7 +39,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
                 <strong style={{ fontSize: "0.92rem" }}>{meta.label}</strong>
                 {ev.value !== null ? (
-                  <span style={{ fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontWeight: 600 }}>{ev.value.toFixed(2)} {meta.unit}</span>
                     <span
                       style={{
@@ -53,27 +53,6 @@ export function LevelProgress({ evaluation, historical }: Props) {
                     >
                       {ev.label} L{ev.level}
                     </span>
-                    {/* 历史最高徽章 (有就显示,跟当前并排,醒目对比) */}
-                    {histEv?.value != null && histEv.level != null && (
-                      <span
-                        title={`历史最高: ${histEv.value.toFixed(2)} ${meta.unit}`}
-                        style={{
-                          padding: "2px 8px",
-                          borderRadius: 6,
-                          background: "white",
-                          color: HIST_COLOR,
-                          border: `2px solid ${HIST_COLOR}`,
-                          fontSize: "0.72rem",
-                          fontWeight: 600,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        🏆 史最高 L{histEv.level}
-                        {histHigher ? ` · ${histEv.value.toFixed(2)}` : ""}
-                      </span>
-                    )}
                   </span>
                 ) : (
                   <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>— 数据不足</span>
@@ -185,11 +164,46 @@ export function LevelProgress({ evaluation, historical }: Props) {
                 })}
               </div>
 
-              {/* 距下一级提示 */}
-              {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0 ? (
-                <div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--muted)" }}>
-                  ▶ 距 {ev.nextLabel} 还差 {ev.gapValue.toFixed(2)} {meta.unit}
-                  {ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""}
+              {/* 进度条下方信息行: 左 = 距下一级 / 右 = 历史最高徽章 (独立行避免遮挡) */}
+              {(ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0) ||
+              (histEv?.value != null && histEv.level != null) ? (
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                    {ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0
+                      ? `▶ 距 ${ev.nextLabel} 还差 ${ev.gapValue.toFixed(2)} ${meta.unit}${
+                          ev.gapWatts !== undefined ? ` (~${ev.gapWatts} W)` : ""
+                        }`
+                      : ""}
+                  </span>
+                  {histEv?.value != null && histEv.level != null && (
+                    <span
+                      title={`历史最高: ${histEv.value.toFixed(2)} ${meta.unit}`}
+                      style={{
+                        padding: "2px 10px",
+                        borderRadius: 6,
+                        background: "white",
+                        color: HIST_COLOR,
+                        border: `2px solid ${HIST_COLOR}`,
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      🏆 史最高 L{histEv.level} · {histEv.value.toFixed(2)} {meta.unit}
+                    </span>
+                  )}
                 </div>
               ) : null}
             </div>
