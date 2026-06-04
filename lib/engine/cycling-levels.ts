@@ -16,7 +16,7 @@ export type Dimension = (typeof DIMENSIONS)[number];
  * 12 段位中文名 (L0-L11)
  * 来源: Coggan 等价 + 小红书骑友圈段位命名
  */
-export const LEVEL_NAMES: readonly string[] = [
+export const LEVEL_NAMES = [
   "入门骑友",       // L0
   "小PRO 入门",     // L1
   "小PRO 成长",     // L2
