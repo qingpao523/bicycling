@@ -3,8 +3,11 @@
 - **日期**：2026-06-04
 - **范围**：bicycling repo, `/activities` 页面重构 + nav 集成 + 段位徽章接入
 - **状态**：设计待 review
-- **预计工时**：1-2 人日
+- **预计工时**：2-3 人日
 - **作者**：Claude (P8 协同)
+- **修订**：
+  - 2026-06-04 v1 初稿 (含砍 ②④⑤ 提案)
+  - 2026-06-04 v2 用户反馈: 保留全部 6 模块, 改为"重做风格+优化"; 工时 1-2d → 2-3d
 
 ---
 
@@ -22,7 +25,7 @@
 
 1. **路径迁移 + nav 接入**: `/activities` URL 保持不变, 但移到 `(analytics)` route group 自动获得左侧 nav 菜单。
 2. **UI 风格统一**: 全套 `.analytics-card` / `.analytics-stat-card` / `.analytics-page-header`, 与 PMC/Level 页面无视觉断点。
-3. **砍冗余**: 删除与其他 analytics 页面重复的图表 (类型分布 / 功率区间分布 / 日历热图), 让活动列表回归核心。
+3. **保留全部 6 模块, 全部用 analytics 风格重做**: 日历热图 / 类型分布 / 功率区间分布在本页有独特价值 (一眼看训练规律 / 上下文化看类型偏好 / 30 天总量视角), 与其他 analytics 页面互补不冗余 — 此次只重做视觉与交互, 不砍内容。
 4. **接入段位徽章**: 每条活动右侧显示该次活动 TSS/IF 落在哪个段位的"强度段位徽章" (复用 `lib/engine/cycling-levels.ts` 体系)。
 5. **IA 重新设计**: 顶层 → 趋势 → 列表三段式, 信息密度可呼吸。
 
@@ -39,49 +42,78 @@
 
 ---
 
-## 2. 模块取舍
+## 2. 模块取舍 (全保留, 仅重做视觉与交互)
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│ 现状 711 行包含                              │ 取舍                     │
-├──────────────────────────────────────────────┼─────────────────────────┤
-│ ① 顶部 7d/30d 综合统计 + 周/月环比           │ ✅ 保留 (重做 UI 用 stat-card) │
-│ ② 日历热力图 (近 16 周)                      │ ❌ 砍 (跟 PMC TSS 序列冗余) │
-│ ③ 周 TSS 趋势图 (近 26 周)                   │ ✅ 保留 (但简化样式)     │
-│ ④ 活动类型分布饼图                           │ ❌ 砍 (跟功率形态页重复)  │
-│ ⑤ 功率区间分布 Z1-Z7                         │ ❌ 砍 (跟功率形态页重复)  │
-│ ⑥ 活动列表 (筛选 7 维 + 排序 5 维 + 分页)    │ ✅ 保留 + 加段位徽章     │
-│ + 当前状态卡 (TSB/CTL/ATL)                   │ ✅ 保留 (核心引导)       │
-│ + 同步状态卡                                 │ ✅ 保留 (简化为单 stat)  │
-│ + 周期对比 (本月 vs 上月)                    │ ✅ 收编进 ① 顶部统计     │
-│ + 重点活动 (highlightActivities)             │ ✅ 保留 (顶部突出)       │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 现状模块                       │ v2 决策 (全保留 + 优化方向)                   │
+├──────────────────────────────────┼─────────────────────────────────────────────┤
+│ ① 顶部 7d/30d 综合统计 + 周/月环比 │ ✅ 重做用 .analytics-stat-card 行          │
+│ ② 日历热力图 (近 16 周)          │ ✅ 保留 — 与 PMC 折线互补 (热图一眼看规律) │
+│                                  │    优化: 套 .analytics-card / 色阶映射统一  │
+│                                  │    7 阶 → 6 阶 (与段位 5 色阶呼应)         │
+│                                  │    移动端可横滑                              │
+│ ③ 周 TSS 趋势图 (近 26 周)       │ ✅ 保留 + 简化 (套 .analytics-card)         │
+│ ④ 活动类型分布饼图               │ ✅ 保留 — activities 页有上下文价值        │
+│                                  │    优化: 改为水平 stacked bar + 数字标签    │
+│                                  │    (饼图小屏不友好, bar 更紧凑可读)         │
+│ ⑤ 功率区间分布 Z1-Z7             │ ✅ 保留 — 30d 总量视角与 power-profile     │
+│                                  │    (个性化分析) 互补                         │
+│                                  │    优化: 套 .analytics-card / Z 颜色与 PMC  │
+│                                  │    页面 CTL/TSB 色系对齐                     │
+│ ⑥ 活动列表 (筛选 7 维 + 排序 + 分页)│ ✅ 保留 + 加段位徽章                     │
+│ + 当前状态卡 (TSB/CTL/ATL)       │ ✅ 保留 (核心引导, 顶部)                    │
+│ + 同步状态卡                     │ ✅ 保留 (简化为 stat-card)                  │
+│ + 周期对比 (本月 vs 上月)        │ ✅ 收编进 ① 顶部统计                        │
+│ + 重点活动 (highlightActivities) │ ✅ 保留 (顶部突出)                          │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 2.1 为什么"重做"而非"砍"
+
+| 模块 | 与 analytics 其他页对比 | 在本页的独特价值 |
+|---|---|---|
+| ② 日历热图 | PMC 是 ctl/atl/tsb 折线 | 热图能一眼看出训练规律 (周末 / 跳过哪些天 / 集中度), 折线看不出 |
+| ④ 类型分布 | 功率形态页是个性化骑手类型分析 | 这里是"过去 30 天我都骑了什么" (耐力/爬坡/高强度比例), 上下文不同 |
+| ⑤ 功率区间分布 | 功率形态页是单次活动的 power curve 评分 | 这里是"过去 30 天总秒数在 Z1-Z7 的占比" (训练强度结构) |
+
+**底层逻辑**: 同一份数据从不同切片看, 仍是不同信息。重做的关键是**视觉一致 + 交互升级**, 不是删功能。
 
 ---
 
-## 3. 信息架构 (三段式)
+## 3. 信息架构 (四段式)
 
 ```
-┌──── Top: 当前状态总览 ──────────────────────────────────────────────┐
-│   .analytics-page-header                                            │
+┌──── §A 顶部: 当前状态总览 ─────────────────────────────────────────┐
+│   .analytics-page-header (🚴 训练历史 + 一句话总结)                 │
 │   ┌─ 当前训练状态卡 (CTL/ATL/TSB + 状态标签 + 链接 PMC 详情)        │
-│   ├─ 同步状态 stat-card                                              │
-│   ├─ 重点活动 alert (≤ 4 条需要处理的)                              │
-│   └─ KPI 行: 4 个 stat-card (7d 活动数 / 时长 / TSS / 距离)         │
-│       含周环比 + 链接到对应 filter 的列表                            │
+│   ├─ 重点活动 alert (≤ 4 条需要处理的, 用 .analytics-card 边色条)  │
+│   └─ KPI stat-card 行: 4 个 (7d 活动数 / 时长 / TSS / 距离)         │
+│       含周环比箭头 + 点击跳到对应 filter 的列表                     │
 └─────────────────────────────────────────────────────────────────────┘
-┌──── Middle: 周期趋势 ───────────────────────────────────────────────┐
-│   .analytics-card 周 TSS 趋势图 (recharts BarChart, 26 周)          │
-│   .analytics-card 周期对比 (本周 vs 上周 + 本月 vs 上月 stat row)   │
+┌──── §B 中部: 训练规律与趋势 ───────────────────────────────────────┐
+│   ┌─ .analytics-card 日历热力图 (近 16 周, 6 色阶, 移动端横滑)     │
+│   ├─ .analytics-card 周 TSS 趋势图 (recharts BarChart, 26 周)       │
+│   └─ .analytics-card 周期对比 (本周 vs 上周 + 本月 vs 上月 stat row)│
 └─────────────────────────────────────────────────────────────────────┘
-┌──── Bottom: 活动列表 ───────────────────────────────────────────────┐
+┌──── §C 中下: 训练结构分布 (2 列 grid) ─────────────────────────────┐
+│   .analytics-card 活动类型分布 (水平 stacked bar + 数字标签)        │
+│   .analytics-card 功率区间分布 (Z1-Z7 horizontal bar + 总秒数 + %)  │
+└─────────────────────────────────────────────────────────────────────┘
+┌──── §D 底部: 活动列表 ─────────────────────────────────────────────┐
 │   .analytics-card 筛选 toolbar (q / time / rideType / ai / fuel / load / sort) │
 │   .analytics-card 列表 (每条活动: 名称 / 时间 / 距离 / TSS / IF /  │
 │                          段位徽章 / AI 报告标记 / 补给标记 / →)     │
 │   分页                                                              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.1 §B / §C 两段差异
+
+- §B 是**时间序列**视角 ("我什么时候训练 / 训练量趋势")
+- §C 是**结构组成**视角 ("我训练的是什么 / 强度怎么分布")
+
+两个视角并列不重叠, 视觉上 §B 全宽卡片, §C 双列 grid 收紧密度。
 
 ---
 
@@ -142,10 +174,13 @@ export type ActivityIntensityBadge = {
 | `components/analytics/activities-state-card.tsx` | 当前训练状态 (TSB/CTL/ATL + 状态文案) | **新建** |
 | `components/analytics/activities-kpi-row.tsx` | 4 个 7d 统计 stat-card 行 | **新建** |
 | `components/analytics/activities-weekly-trend.tsx` | 周 TSS 趋势 BarChart | **新建** (从 training-history-charts.tsx 拆出来) |
+| `components/analytics/activities-calendar-heatmap.tsx` | 16 周日历热力图 (6 色阶, 横滑) | **新建** |
+| `components/analytics/activities-type-distribution.tsx` | 活动类型水平 stacked bar | **新建** |
+| `components/analytics/activities-power-zones.tsx` | Z1-Z7 horizontal bar 区间分布 | **新建** |
 | `components/analytics/activities-period-compare.tsx` | 周/月对比 stat row | **新建** |
 | `components/analytics/activities-toolbar.tsx` | 筛选/搜索/排序工具栏 | **新建** |
 | `components/analytics/activities-list.tsx` | 活动列表 (含段位徽章) | **新建** |
-| `components/analytics/training-history-charts.tsx` | 旧 chart 组件 | **删除** (内容已分配) |
+| `components/analytics/training-history-charts.tsx` | 旧 chart 组件 | **删除** (内容已拆到 4 个新组件) |
 | `lib/engine/cycling-levels.ts` | 加 `evaluateActivityIntensity` | **新增函数** |
 | `tests/cycling-levels.test.ts` | 加 4 个测试 | **追加** |
 
@@ -168,10 +203,23 @@ export default async function ActivitiesPage({ searchParams }) {
         <p>{summary}</p>
       </header>
 
+      {/* §A 顶部 */}
       <ActivitiesStateCard pmc={latestPmc} state={todayState} />
+      {highlightActivities.length > 0 && <ActivitiesHighlightAlert items={highlightActivities} />}
       <ActivitiesKpiRow stats={stats7} compare={weekCompare} currentQuery={...} />
+
+      {/* §B 中部: 时序 */}
+      <ActivitiesCalendarHeatmap data={calendarData} />
       <ActivitiesWeeklyTrend data={weeklyTrend} />
       <ActivitiesPeriodCompare ... />
+
+      {/* §C 中下: 结构 (2 列 grid) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <ActivitiesTypeDistribution data={typeDistribution} />
+        <ActivitiesPowerZones data={powerZoneDistribution} />
+      </div>
+
+      {/* §D 底部: 列表 */}
       <ActivitiesToolbar currentQuery={currentQuery} />
       <ActivitiesList items={pagedItems} badges={badges} />
       <Pagination ... />
@@ -270,20 +318,20 @@ Next.js 15 route group `(name)` 不算 URL 段, 因此 `app/(analytics)/activiti
 ### Sub-sprint A — engine + 路径迁移 (4-6h)
 
 1. 新增 `lib/engine/cycling-levels.ts` 的 `evaluateActivityIntensity()`
-2. 单测覆盖 4 case
+2. 单测覆盖 4 case (有 power / 无 power / 边界值 / 无 weight)
 3. git mv `app/activities/page.tsx` → `app/(analytics)/activities/page.tsx` (临时, 暂不重写)
 4. 删除 `app/(analytics)/analytics/activities/page.tsx` redirect
 5. 改 `nav-menu.tsx` href
 6. build 验证无冲突 + 访问 /activities 应有 nav 菜单
 7. **Sub-sprint A 完成时, /activities 仍是老 UI 但有 nav 了**
 
-### Sub-sprint B — 重写 UI (1 day)
+### Sub-sprint B — 重写 UI (1.5-2 day)
 
-8. 创建 6 个新组件 (state-card / kpi-row / weekly-trend / period-compare / toolbar / list)
-9. 重写 page.tsx 用新组件 + 砍 ②④⑤ 模块
-10. 删除 `components/analytics/training-history-charts.tsx`
+8. 创建 9 个新组件 (state-card / highlight-alert / kpi-row / calendar-heatmap / weekly-trend / period-compare / type-distribution / power-zones / toolbar / list — 共 10 个)
+9. 重写 page.tsx 用新组件 + **全部 6 模块保留**, 按四段式 IA 组织
+10. 删除 `components/analytics/training-history-charts.tsx` (内容已拆到 calendar-heatmap / weekly-trend / type-distribution / power-zones 4 个新组件)
 11. 段位徽章接入 list 每条活动
-12. 全 build + smoke
+12. 全 build + smoke + 三种用户场景验证 (无数据 / 部分 / 完整)
 
 ---
 
@@ -294,8 +342,10 @@ Next.js 15 route group `(name)` 不算 URL 段, 因此 `app/(analytics)/activiti
 | 路径迁移导致 build 冲突 | 严格 git mv (rename), 一次操作 |
 | 旧 .activities-hero 等 CSS 类失去使用方但仍在 globals.css | 第二阶段统一清理 (Sub-sprint B 末) |
 | evaluateActivityIntensity 算法对单次活动判定不准 | 算法明确文档"基于本次最佳 NP 在 6 维度的最高级别", 接受单维度可能高估; 提供 IF-fallback 兜底 |
-| 用户期望保留 ②④⑤ 但实际看到没了 | spec 明确砍掉, 用户 review 时可改 |
 | 段位徽章把列表行变得太挤 | 设计稿留好 badge 区域宽度, 用 8rem 固定列宽 |
+| 10 个组件页面体积膨胀 (server 渲染) | server component 模式不打包到 client, 影响有限; 重 chart (recharts) 仍是 client component, 限制在 §B/§C 4 个组件 |
+| 日历热图移动端拥挤 | overflow-x: auto 横滑; 单元格 min-width 12px |
+| 类型分布水平 bar 标签遮挡 | < 5% 占比的类型并入"其他", 提示 "悬停查看完整" |
 
 ---
 
