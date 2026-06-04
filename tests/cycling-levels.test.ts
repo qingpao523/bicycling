@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LEVEL_TABLE, LEVEL_NAMES, DIMENSIONS, evaluateDimension, evaluateLevel } from "@/lib/engine/cycling-levels";
+import { LEVEL_TABLE, LEVEL_NAMES, DIMENSIONS, evaluateDimension, evaluateLevel, evaluateActivityIntensity } from "@/lib/engine/cycling-levels";
 import type { Activity, User } from "@/lib/types";
 
 describe("LEVEL_TABLE 常量", () => {
@@ -148,5 +148,67 @@ describe("evaluateLevel 木桶综合", () => {
       user: mkUser(),
     });
     expect(r.dataWindow.activityCount).toBe(5); // old 被过滤
+  });
+});
+
+function mkActivity(over: Partial<Activity> = {}): Activity {
+  return {
+    id: "act1",
+    userId: "u1",
+    source: "intervals.icu",
+    externalActivityId: "ext1",
+    name: "test",
+    startTime: new Date().toISOString(),
+    distanceKm: 50,
+    movingTimeMin: 120,
+    elevationM: 600,
+    avgSpeedKmh: 25,
+    rawSummaryJson: {},
+    rawStreamsJson: undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...over,
+  };
+}
+
+describe("evaluateActivityIntensity", () => {
+  it("有 NP 和 weight → 评 ftp 维度段位", () => {
+    // NP 230W / 76kg = 3.03 W/kg → ftp_20min L3 (2.8-3.2)
+    const r = evaluateActivityIntensity(mkActivity({ np: 230, ifValue: 0.92, tss: 100 }), 76);
+    expect(r.kind).toBe("graded");
+    if (r.kind === "graded") {
+      expect(r.level).toBe(3);
+      expect(r.label).toBe("小PRO 毕业");
+    }
+  });
+
+  it("无 NP 无 power → IF fallback 类别", () => {
+    const r = evaluateActivityIntensity(mkActivity({ ifValue: 0.88 }), 76);
+    expect(r.kind).toBe("fallback");
+    if (r.kind === "fallback") {
+      expect(r.category).toBe("high");
+      expect(r.label).toBe("高强度骑");
+    }
+  });
+
+  it("中 IF → 节奏骑 fallback", () => {
+    const r = evaluateActivityIntensity(mkActivity({ ifValue: 0.75 }), 76);
+    expect(r.kind).toBe("fallback");
+    if (r.kind === "fallback") {
+      expect(r.category).toBe("tempo");
+    }
+  });
+
+  it("无 IF 无 NP → 耐力骑 fallback", () => {
+    const r = evaluateActivityIntensity(mkActivity({}), 76);
+    expect(r.kind).toBe("fallback");
+    if (r.kind === "fallback") {
+      expect(r.category).toBe("endurance");
+    }
+  });
+
+  it("无 weight → graded 路径不走, 走 fallback", () => {
+    const r = evaluateActivityIntensity(mkActivity({ np: 230, ifValue: 0.92 }), undefined);
+    expect(r.kind).toBe("fallback");
   });
 });
