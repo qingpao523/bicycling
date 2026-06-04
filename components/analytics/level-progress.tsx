@@ -103,7 +103,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                   />
                 )}
 
-                {/* 历史峰值竖线标记 + 顶上"史"标 — 显著可见 */}
+                {/* 历史峰值竖线标记 — 紫色 3px + 白色阴影, 显著可见, 顶上不挂标签防遮挡上方文字 */}
                 {histPct !== null && (
                   <div
                     title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
@@ -120,26 +120,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                       cursor: "help",
                       zIndex: 2,
                     }}
-                  >
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: -16,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        fontSize: "0.62rem",
-                        fontWeight: 700,
-                        color: HIST_COLOR,
-                        background: "white",
-                        padding: "1px 4px",
-                        borderRadius: 3,
-                        border: `1px solid ${HIST_COLOR}`,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      史
-                    </span>
-                  </div>
+                  />
                 )}
 
                 {/* 12 段位阈值刻度 */}
