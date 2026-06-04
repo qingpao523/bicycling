@@ -412,7 +412,7 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
                 <h2>VO2max 深度解读</h2>
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: "2.4rem", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)" }}>
+                <span style={{ fontSize: "2.4rem", fontWeight: 700, fontFamily: "var(--font-space-grotesk), sans-serif", color: "var(--accent)" }}>
                   {report.vo2max_estimate.value}
                 </span>
                 <span style={{ fontSize: "1rem", color: "var(--muted)" }}>{report.vo2max_estimate.unit}</span>

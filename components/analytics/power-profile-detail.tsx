@@ -116,7 +116,7 @@ export function PowerProfileDetailView({ classification, scores, previousScores,
             </span>
           )}
         </div>
-        <div style={{ textAlign: "center", fontSize: "2.2rem", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)" }}>
+        <div style={{ textAlign: "center", fontSize: "2.2rem", fontWeight: 700, fontFamily: "var(--font-space-grotesk), sans-serif", color: "var(--accent)" }}>
           {displayClassification.type}
         </div>
         <div style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--muted)", marginTop: 4 }}>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
+/* 字体改用 next/font/google 在 build 时自托管, 见 app/layout.tsx */
 
 :root {
   --bg: #eef3fb;
@@ -40,7 +40,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: var(--font-ibm-plex), sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -56,7 +56,7 @@ h4,
 strong,
 .stat-value,
 .kpi {
-  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-family: var(--font-space-grotesk), var(--font-ibm-plex), sans-serif;
   letter-spacing: -0.04em;
 }
 
@@ -982,7 +982,7 @@ textarea {
 
 .activities-highlight-card h3,
 .activities-list-title {
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: var(--font-ibm-plex), sans-serif;
   font-size: 1.08rem;
   font-weight: 700;
   color: var(--text);
@@ -1081,7 +1081,7 @@ textarea {
 .dashboard-help summary {
   cursor: pointer;
   list-style: none;
-  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-family: var(--font-space-grotesk), var(--font-ibm-plex), sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
 }
@@ -1093,7 +1093,7 @@ textarea {
 .dashboard-help summary::after {
   content: "展开";
   margin-left: 10px;
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: var(--font-ibm-plex), sans-serif;
   font-size: 0.84rem;
   color: var(--muted);
 }
@@ -1304,7 +1304,7 @@ textarea {
 .activity-core-details summary {
   cursor: pointer;
   list-style: none;
-  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-family: var(--font-space-grotesk), var(--font-ibm-plex), sans-serif;
   font-size: 1rem;
   font-weight: 700;
 }
@@ -1341,7 +1341,7 @@ textarea {
 .activity-page h3,
 .activity-page strong,
 .activity-page .summary-value {
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: var(--font-ibm-plex), sans-serif;
   letter-spacing: -0.02em;
 }
 
@@ -1886,7 +1886,7 @@ textarea {
 .activity-analysis-group summary {
   cursor: pointer;
   list-style: none;
-  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-family: var(--font-space-grotesk), var(--font-ibm-plex), sans-serif;
   font-size: 1.02rem;
   font-weight: 700;
 }
@@ -2033,7 +2033,7 @@ textarea {
 
 .report-heading {
   margin: 6px 0 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-space-grotesk), sans-serif;
   font-size: 1.12rem;
   line-height: 1.15;
   display: flex;
@@ -2714,7 +2714,7 @@ textarea {
 
 code,
 pre {
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: var(--font-ibm-plex), sans-serif;
 }
 
 @media (max-width: 1080px) {

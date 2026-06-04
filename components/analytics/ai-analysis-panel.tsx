@@ -257,7 +257,7 @@ export function AiAnalysisPanel() {
             <h2>VO2max 估算</h2>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: "2.4rem", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)" }}>
+            <span style={{ fontSize: "2.4rem", fontWeight: 700, fontFamily: "var(--font-space-grotesk), sans-serif", color: "var(--accent)" }}>
               {report.vo2max_estimate.value}
             </span>
             <span style={{ fontSize: "1rem", color: "var(--muted)" }}>{report.vo2max_estimate.unit}</span>
@@ -299,7 +299,7 @@ export function AiAnalysisPanel() {
           </h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 16, alignItems: "center" }}>
-          <div style={{ padding: "14px 20px", borderRadius: 12, background: "var(--accent-soft)", color: "var(--accent)", fontSize: "1.2rem", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif" }}>
+          <div style={{ padding: "14px 20px", borderRadius: 12, background: "var(--accent-soft)", color: "var(--accent)", fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-space-grotesk), sans-serif" }}>
             {report.rider_type_analysis.current_type}
           </div>
           <div>
