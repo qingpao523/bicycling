@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import { headers } from "next/headers";
 
 import { CopyButton } from "@/components/copy-button";
 import { requireUser } from "@/lib/auth";
@@ -121,6 +122,18 @@ export default async function SettingsPage({
   const hasPersonalStravaApp = Boolean(user.stravaPersonalClientId && user.stravaPersonalClientSecretEncrypted);
   const stravaExpiry = user.stravaTokenExpiresAt ? new Date(user.stravaTokenExpiresAt) : undefined;
   const stravaExpired = stravaExpiry ? stravaExpiry.getTime() <= Date.now() : false;
+
+  // 动态计算当前系统实际生成的 Strava callback URL (与 lib/strava.ts getStravaRedirectUri 同逻辑),
+  // 让用户能 self-diagnose: 看到的就是 Strava app 后台必须配的回调地址
+  const hdrs = await headers();
+  const stravaCallbackEnv = process.env.STRAVA_REDIRECT_URI?.trim();
+  const forwardedProto = hdrs.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = hdrs.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || hdrs.get("host") || "localhost:3000";
+  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
+  const stravaCallbackComputed = `${protocol}://${host}/api/auth/strava/callback`;
+  const stravaCallbackEffective = stravaCallbackEnv || stravaCallbackComputed;
+  const stravaCallbackSource = stravaCallbackEnv ? "env STRAVA_REDIRECT_URI" : "请求 host header 动态生成";
 
   return (
     <main className="settings-shell">
@@ -324,7 +337,19 @@ export default async function SettingsPage({
             <li>athlete id：{user.stravaAthleteId ?? "未配置"}</li>
             <li>scope：{user.stravaScopes ?? "未配置"}</li>
             <li>token 过期：{stravaExpiry ? `${formatDateTime(user.stravaTokenExpiresAt!)}${stravaExpired ? "（已过期）" : ""}` : "未知"}</li>
-            <li>当前回调：`/api/auth/strava/callback`</li>
+            <li style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span>当前回调 URL (复制到 Strava 后台)：</span>
+              <code style={{ background: "var(--surface-alt, #f8fafc)", padding: "2px 8px", borderRadius: 6, fontSize: "0.82rem", wordBreak: "break-all" }}>
+                {stravaCallbackEffective}
+              </code>
+              <CopyButton text={stravaCallbackEffective} />
+              <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>(来源: {stravaCallbackSource})</span>
+            </li>
+            {stravaCallbackEnv && stravaCallbackEnv !== stravaCallbackComputed ? (
+              <li style={{ color: "#c44d3b", fontSize: "0.85rem" }}>
+                ⚠ STRAVA_REDIRECT_URI 与当前域名不一致 — 动态生成是 <code>{stravaCallbackComputed}</code>, 若已迁移域名请同步更新 .env 或服务器 host
+              </li>
+            ) : null}
             <li>建议 scope：read,activity:read_all</li>
             <li>同步前会先按开始时间、距离、时长做疑似重复过滤，尽量避免和 intervals 数据重复入库。</li>
           </ul>
@@ -398,7 +423,13 @@ export default async function SettingsPage({
             <h3>Strava 个人应用使用步骤</h3>
             <ul className="list">
               <li>1. 在 Strava 后台创建你自己的应用，地址：`https://www.strava.com/settings/api`。</li>
-              <li>2. 将回调地址配置为当前系统回调：`/api/auth/strava/callback` 对应的完整公网地址。</li>
+              <li>
+                2. 将回调地址配置为当前系统回调:{" "}
+                <code style={{ background: "var(--surface-alt, #f8fafc)", padding: "2px 6px", borderRadius: 4, fontSize: "0.82rem" }}>
+                  {stravaCallbackEffective}
+                </code>
+                {" "}(直接复制上方"当前回调 URL" 即可)
+              </li>
               <li>3. 在这里填写个人应用 ID / Key，点击“保存”。</li>
               <li>4. 点击“前往个人授权”，系统会改为使用你的个人应用发起 OAuth。</li>
               <li>5. 授权成功后，后续手动同步与 token 刷新都会继续走你的个人应用。</li>
