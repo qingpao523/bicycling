@@ -1,16 +1,19 @@
 import { dedupeIncomingActivities } from "@/lib/activity-dedupe";
 import { decryptSecret } from "@/lib/crypto";
-import { fetchIntervalsActivities, fetchIntervalsProfile } from "@/lib/intervals";
+import { fetchIntervalsActivities, fetchIntervalsActivityStreams, fetchIntervalsProfile } from "@/lib/intervals";
 import {
+  enqueueSyncJob,
+  getActivity,
   getAppConfig,
   getLatestActivityAliasStartTime,
   listActivitiesByUser,
   listActivityAliasesByUser,
   saveActivityAlias,
   saveUser,
+  updateActivityStreams,
   upsertActivities,
 } from "@/lib/storage";
-import type { User } from "@/lib/types";
+import type { SyncJob, User } from "@/lib/types";
 
 const incrementalOverlapDays = 14;
 
@@ -79,6 +82,33 @@ export async function runIntervalsSync(input: {
     updatedAt: new Date().toISOString(),
   });
   await upsertActivities(deduped.accepted);
+
+  // 自动入队 streams backfill (仅 cycling 类活动,跳过 trainer/虚拟 + <10min 短活动)
+  // 注意: intervals 同步已对最近 20 条预取 streams,handler 会跳过已有 streams 的活动
+  const SHOULD_BACKFILL = (act: (typeof deduped.accepted)[number]) => {
+    const raw = act.rawSummaryJson as Record<string, unknown> | undefined;
+    const type = String(raw?.type ?? raw?.sport_type ?? "").toLowerCase();
+    const isCycling = type.includes("ride") || type.includes("bike") || type.includes("cycl");
+    const tooShort = act.movingTimeMin < 10;
+    return isCycling && !tooShort;
+  };
+
+  const backfillBatch = deduped.accepted.filter(SHOULD_BACKFILL);
+  for (let i = 0; i < backfillBatch.length; i++) {
+    const act = backfillBatch[i];
+    // 每条间隔 6 秒,避免 intervals.icu 限流
+    const availableAt = new Date(Date.now() + i * 6000).toISOString();
+    await enqueueSyncJob({
+      userId: input.user.id,
+      source: "intervals.icu",
+      jobType: "stream_backfill",
+      reason: "auto_after_sync",
+      externalRef: `${act.externalActivityId}:streams`,
+      payload: { activityId: act.id, externalActivityId: act.externalActivityId },
+      availableAt,
+    });
+  }
+
   await Promise.all(
     deduped.skipped.map((item) =>
       saveActivityAlias({
@@ -98,5 +128,35 @@ export async function runIntervalsSync(input: {
     total: activities.length,
     inserted: deduped.accepted.length,
     skipped: deduped.skipped.length,
+    streamBackfillEnqueued: backfillBatch.length,
   };
+}
+
+export async function handleIntervalsStreamBackfillJob(user: User, job: SyncJob) {
+  const activityId = typeof job.payload?.activityId === "string" ? job.payload.activityId : undefined;
+  const externalActivityId =
+    typeof job.payload?.externalActivityId === "string" ? job.payload.externalActivityId : undefined;
+  if (!activityId || !externalActivityId) {
+    throw new Error("stream_backfill 任务缺少 activityId/externalActivityId。");
+  }
+
+  if (!user.intervalsApiKeyEncrypted) {
+    throw new Error("请先填写 intervals.icu API key。");
+  }
+
+  // 跳过已有 streams 的
+  const existing = await getActivity(activityId);
+  if (!existing) return { skipped: "活动不存在" };
+  const existingStreams = existing.rawStreamsJson as Record<string, unknown> | undefined;
+  if (existingStreams && Object.keys(existingStreams).length > 0) {
+    return { skipped: "已存在 streams" };
+  }
+
+  const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
+  const streams = await fetchIntervalsActivityStreams(externalActivityId, apiKey);
+  if (!streams || Object.keys(streams).length === 0) {
+    return { skipped: "intervals 未返回 streams" };
+  }
+  await updateActivityStreams(activityId, streams);
+  return { fetched: true, keys: Object.keys(streams) };
 }

@@ -79,7 +79,7 @@ export interface SyncJob {
   id: string;
   userId?: string;
   source: "intervals.icu" | "strava";
-  jobType: "sync" | "delete";
+  jobType: "sync" | "delete" | "stream_backfill";
   status: "pending" | "processing" | "done" | "failed";
   reason?: string;
   externalRef?: string;
