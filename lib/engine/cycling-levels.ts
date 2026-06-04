@@ -249,3 +249,72 @@ export function evaluateLevel(input: { activities: Activity[]; user: User }): Le
     warnings,
   };
 }
+
+/**
+ * 单次活动的强度段位评定
+ * - graded: 有 NP + weight → 用 ftp_20min 维度查表评级 (NP ≈ 20min 输出近似)
+ * - fallback: 缺数据时, 用 IF 粗分类
+ */
+export type ActivityIntensityBadge =
+  | {
+      kind: "graded";
+      level: number;          // 0-11
+      label: string;          // "小PRO 毕业"
+      colorBucket: ReturnType<typeof LEVEL_COLOR_BUCKET>;
+      detail: string;         // "NP 230W = 3.03 W/kg → L3"
+    }
+  | {
+      kind: "fallback";
+      category: "high" | "tempo" | "endurance";
+      label: string;          // "高强度骑" / "节奏骑" / "耐力骑"
+      colorBucket: ReturnType<typeof LEVEL_COLOR_BUCKET>;
+      detail: string;         // "IF 0.88 → 高强度"
+    };
+
+export function evaluateActivityIntensity(
+  activity: Activity,
+  weightKg: number | undefined,
+): ActivityIntensityBadge {
+  // graded path: 需要 NP + weight
+  if (activity.np && weightKg && weightKg > 0) {
+    const wkg = activity.np / weightKg;
+    const dimEval = evaluateDimension("ftp_20min", wkg, weightKg);
+    if (dimEval.level !== null && dimEval.label !== null) {
+      return {
+        kind: "graded",
+        level: dimEval.level,
+        label: dimEval.label,
+        colorBucket: LEVEL_COLOR_BUCKET(dimEval.level),
+        detail: `NP ${activity.np}W = ${wkg.toFixed(2)} W/kg → L${dimEval.level}`,
+      };
+    }
+  }
+
+  // fallback path: IF 粗分类
+  const iff = activity.ifValue ?? 0;
+  if (iff >= 0.85) {
+    return {
+      kind: "fallback",
+      category: "high",
+      label: "高强度骑",
+      colorBucket: "gold",
+      detail: `IF ${iff.toFixed(2)} → 高强度`,
+    };
+  }
+  if (iff >= 0.70) {
+    return {
+      kind: "fallback",
+      category: "tempo",
+      label: "节奏骑",
+      colorBucket: "blue",
+      detail: `IF ${iff.toFixed(2)} → 节奏`,
+    };
+  }
+  return {
+    kind: "fallback",
+    category: "endurance",
+    label: "耐力骑",
+    colorBucket: "gray",
+    detail: iff > 0 ? `IF ${iff.toFixed(2)} → 耐力` : "耐力骑 (无 IF 数据)",
+  };
+}

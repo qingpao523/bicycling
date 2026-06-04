@@ -31,7 +31,7 @@ const navItems = [
   { href: "/analytics/fatigue", label: "疲劳形态", icon: Activity },
   { href: "/analytics/recovery", label: "状态恢复", icon: Heart },
   { href: "/analytics/data", label: "数据分析", icon: BarChart3 },
-  { href: "/analytics/activities", label: "运动记录", icon: Gauge },
+  { href: "/activities", label: "运动记录", icon: Gauge },
   { href: "/analytics/prediction", label: "表现预测", icon: Brain },
   { href: "/analytics/leaderboard", label: "排行榜", icon: Trophy },
   { href: "/analytics/tools", label: "数据工具", icon: Database },
