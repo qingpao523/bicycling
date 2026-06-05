@@ -1,7 +1,8 @@
 import { requireUser } from "@/lib/auth";
-import { listActivitiesByUser, listUserSegments, listAllSegmentEffortsByUser, countActivitiesWithSegments, countActivitiesWithoutSegments } from "@/lib/storage";
+import { listActivitiesByUser, listUserSegments, listAllSegmentEffortsByUser, countActivitiesWithSegments } from "@/lib/storage";
 import { calculatePmc } from "@/lib/engine/pmc";
 import { SegmentsDashboard } from "@/components/analytics/segments-dashboard";
+import { SegmentBackfillPanel } from "@/components/analytics/segment-backfill-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -77,13 +78,26 @@ export default async function SegmentsPage() {
       <div>
         <div className="analytics-page-header">
           <h1>🏔 赛段</h1>
-          <p>暂无赛段数据 — 需要先同步 Strava 活动并补拉赛段信息</p>
+          <p>暂无赛段数据 — 补拉后即可查看赛段分析</p>
         </div>
-        <div className="analytics-card" style={{ textAlign: "center", padding: 40 }}>
-          <p style={{ color: "var(--muted)", marginBottom: 16 }}>
-            系统在同步 Strava 活动时会自动拉取赛段数据。如果已有活动但无赛段, 请在"工具"中手动触发补拉。
+        <div className="analytics-card" style={{ padding: 32 }}>
+          <h3 style={{ margin: "0 0 12px" }}>如何获取赛段数据</h3>
+          <p style={{ color: "var(--muted)", marginBottom: 16, lineHeight: 1.7 }}>
+            你有 <strong>{activities.length}</strong> 条活动，但尚未拉取赛段信息。
+            赛段数据来自 intervals.icu，需要先确保活动已同步且有流数据 (watts/heartrate/altitude)。
           </p>
-          <a href="/settings" style={{ color: "var(--accent, #1f57d6)" }}>▶ 去设置页同步 Strava</a>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            <SegmentBackfillPanel stats={{
+              totalActivities: activities.length,
+              stravaActivities: stravaCount,
+              withSegments: 0,
+              missingSegments: activities.length,
+            }} />
+          </div>
+          <div style={{ display: "flex", gap: 16, fontSize: "0.85rem" }}>
+            <a href="/settings" style={{ color: "var(--accent, #1f57d6)" }}>▶ 去设置页同步活动</a>
+            <a href="/analytics/tools" style={{ color: "var(--accent, #1f57d6)" }}>▶ 去数据工具补拉流数据</a>
+          </div>
         </div>
       </div>
     );
