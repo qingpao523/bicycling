@@ -294,41 +294,144 @@ export async function handleSegmentFetchJob(user: User, job: SyncJob) {
   const wattsArr = Array.isArray(streams?.watts) ? (streams.watts as number[]) : [];
   const hrArr = Array.isArray(streams?.heartrate) ? (streams.heartrate as number[]) : [];
   const altArr = Array.isArray(streams?.altitude) ? (streams.altitude as number[]) : [];
+  const velArr = Array.isArray(streams?.velocity_smooth) ? (streams.velocity_smooth as number[]) : [];
+  const latlngArr = Array.isArray(streams?.latlng) ? (streams.latlng as [number, number][]) : [];
+
+  // 用于计算 PR — 每个 segment_id 的历史最佳时间
+  const { prisma } = await import("@/lib/prisma");
+  const existingBestBySegment = new Map<number, number>();
 
   let segmentCount = 0;
   let effortCount = 0;
 
   for (const icuSeg of icuSegments) {
-    const si = icuSeg.start_index;
-    const ei = icuSeg.end_index;
+    const si = Math.max(0, icuSeg.start_index);
+    const ei = Math.min(icuSeg.end_index, Math.max(timeArr.length, wattsArr.length, altArr.length) - 1);
+    if (ei <= si) continue;
 
-    // 从 streams 计算这段的指标
-    const segTime = timeArr.length > ei ? (timeArr[ei] - timeArr[si]) : 0; // 秒
+    // ===== 从 streams 计算赛段指标 =====
+    const segTime = timeArr.length > ei ? (timeArr[ei] - timeArr[si]) : 0;
+    const segSliceLen = ei - si + 1;
+
     const segWatts = wattsArr.length > ei
-      ? Math.round(wattsArr.slice(si, ei + 1).reduce((s, w) => s + w, 0) / (ei - si + 1))
+      ? Math.round(wattsArr.slice(si, ei + 1).reduce((s, w) => s + w, 0) / segSliceLen)
       : undefined;
     const segHr = hrArr.length > ei
-      ? Number((hrArr.slice(si, ei + 1).reduce((s, h) => s + h, 0) / (ei - si + 1)).toFixed(1))
+      ? Number((hrArr.slice(si, ei + 1).reduce((s, h) => s + h, 0) / segSliceLen).toFixed(1))
       : undefined;
     const segMaxHr = hrArr.length > ei
       ? Math.round(Math.max(...hrArr.slice(si, ei + 1)))
       : undefined;
 
-    // 用 altitude 估算坡度和爬升
+    // ===== 从 altitude 算 distance / grade / elevation =====
     const startAlt = altArr.length > si ? altArr[si] : undefined;
     const endAlt = altArr.length > ei ? altArr[ei] : undefined;
+    const elevHigh = altArr.length > ei ? Math.max(...altArr.slice(si, ei + 1)) : undefined;
+    const elevLow = altArr.length > ei ? Math.min(...altArr.slice(si, ei + 1)) : undefined;
     const elevGain = startAlt !== undefined && endAlt !== undefined ? Math.max(0, endAlt - startAlt) : undefined;
 
-    // 用 segment_id 做 Strava segment ID (ICU 沿用 Strava 的 segment 编号)
+    // 用 velocity_smooth 积分算距离 (m/s × Δt)
+    let distance = 0;
+    if (velArr.length > ei && timeArr.length > ei) {
+      for (let k = si; k < ei; k++) {
+        const dt = timeArr[k + 1] - timeArr[k];
+        distance += (velArr[k] + velArr[k + 1]) / 2 * dt;
+      }
+    }
+    // fallback: 用总时间 × 平均速度
+    if (distance <= 0 && velArr.length > ei) {
+      const avgVel = velArr.slice(si, ei + 1).reduce((s, v) => s + v, 0) / segSliceLen;
+      distance = avgVel * segTime;
+    }
+    distance = Math.round(distance); // meters
+
+    // 算坡度: (endAlt - startAlt) / distance × 100
+    const avgGrade = distance > 0 && elevGain !== undefined
+      ? Number(((elevGain / distance) * 100).toFixed(1))
+      : 0;
+    const maxGrade = altArr.length > ei && distance > 0
+      ? (() => {
+          let maxG = 0;
+          const step = Math.max(1, Math.floor(segSliceLen / 20)); // sample ~20 点
+          for (let k = si; k < ei - step; k += step) {
+            const dAlt = altArr[k + step] - altArr[k];
+            const dTime = timeArr[k + step] - timeArr[k];
+            const segDist = dTime > 0 && velArr.length > k ? velArr[k] * dTime : 0;
+            if (segDist > 10) {
+              const g = Math.abs((dAlt / segDist) * 100);
+              if (g > maxG) maxG = g;
+            }
+          }
+          return Number(maxG.toFixed(1));
+        })()
+      : undefined;
+
+    // 推算 climbCategory (基于 Strava 的标准, 用 distance × grade)
+    const climbScore = (distance / 1000) * Math.max(avgGrade, 0);
+    let climbCategory = 0;
+    if (climbScore >= 64) climbCategory = 5; // HC
+    else if (climbScore >= 32) climbCategory = 4; // Cat 1
+    else if (climbScore >= 16) climbCategory = 3; // Cat 2
+    else if (climbScore >= 8) climbCategory = 2; // Cat 3
+    else if (climbScore >= 3) climbCategory = 1; // Cat 4
+
+    // GPS 坐标
+    const startLat = latlngArr.length > si ? latlngArr[si]?.[0] : undefined;
+    const startLng = latlngArr.length > si ? latlngArr[si]?.[1] : undefined;
+    const endLat = latlngArr.length > ei ? latlngArr[ei]?.[0] : undefined;
+    const endLng = latlngArr.length > ei ? latlngArr[ei]?.[1] : undefined;
+
+    // 自动打标签
+    const { autoTagSegment } = await import("@/lib/engine/segments/segments-classify");
+    const tempSeg = {
+      id: "", stravaSegmentId: icuSeg.segment_id, name: icuSeg.name,
+      distance, averageGrade: avgGrade, maximumGrade: maxGrade,
+      elevationHigh: elevHigh, elevationLow: elevLow, climbCategory,
+      totalElevationGain: elevGain, createdAt: "", updatedAt: "",
+    };
+    const tags = autoTagSegment(tempSeg);
+
     const segRecord = await upsertSegment({
       stravaSegmentId: icuSeg.segment_id,
       name: icuSeg.name,
-      distance: 0, // ICU segments API 不返回 distance, 后续可从 Strava 补
-      averageGrade: 0,
-      climbCategory: 0,
+      distance,
+      averageGrade: avgGrade,
+      maximumGrade: maxGrade,
+      elevationHigh: elevHigh,
+      elevationLow: elevLow,
+      climbCategory,
+      startLat,
+      startLng,
+      endLat,
+      endLng,
       totalElevationGain: elevGain,
+      tags,
     });
     segmentCount++;
+
+    // ===== 自算 PR: 查这个 segment 的历史最佳时间 =====
+    if (!existingBestBySegment.has(icuSeg.segment_id)) {
+      const best = await prisma.segmentEffort.findFirst({
+        where: { segmentId: segRecord.id, userId: user.id },
+        orderBy: { elapsedTime: "asc" },
+        select: { elapsedTime: true },
+      });
+      existingBestBySegment.set(icuSeg.segment_id, best?.elapsedTime ?? Infinity);
+    }
+    const bestSoFar = existingBestBySegment.get(icuSeg.segment_id)!;
+    const isPr = segTime > 0 && segTime < bestSoFar;
+    if (isPr) existingBestBySegment.set(icuSeg.segment_id, segTime);
+
+    // PR rank: 1 = 当前最快, 2 = 第二, 3 = 第三
+    let prRank: number | undefined;
+    if (isPr) {
+      prRank = 1;
+    } else if (segTime > 0) {
+      const fasterCount = await prisma.segmentEffort.count({
+        where: { segmentId: segRecord.id, userId: user.id, elapsedTime: { lt: segTime } },
+      });
+      if (fasterCount < 3) prRank = fasterCount + 1;
+    }
 
     await upsertSegmentEffort({
       segmentId: segRecord.id,
@@ -341,6 +444,8 @@ export async function handleSegmentFetchJob(user: User, job: SyncJob) {
       averageWatts: segWatts,
       averageHr: segHr,
       maxHr: segMaxHr,
+      prRank,
+      deviceWatts: wattsArr.length > 0,
     });
     effortCount++;
   }
