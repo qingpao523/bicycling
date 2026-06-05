@@ -1220,3 +1220,191 @@ export async function saveAiChatMessages(messages: AiChatMessage[]) {
 
   return records.map(toAiChatMessage);
 }
+
+// ===== Segment CRUD =====
+
+export async function upsertSegment(data: {
+  stravaSegmentId: number;
+  name: string;
+  distance: number;
+  averageGrade: number;
+  maximumGrade?: number;
+  elevationHigh?: number;
+  elevationLow?: number;
+  climbCategory: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
+  totalElevationGain?: number;
+  tags?: string[];
+}) {
+  const now = new Date();
+  const existing = await prisma.segment.findUnique({ where: { stravaSegmentId: data.stravaSegmentId } });
+
+  if (existing) {
+    return await prisma.segment.update({
+      where: { id: existing.id },
+      data: {
+        name: data.name,
+        distance: data.distance,
+        averageGrade: data.averageGrade,
+        maximumGrade: data.maximumGrade,
+        elevationHigh: data.elevationHigh,
+        elevationLow: data.elevationLow,
+        climbCategory: data.climbCategory,
+        city: data.city,
+        state: data.state,
+        country: data.country,
+        startLat: data.startLat,
+        startLng: data.startLng,
+        endLat: data.endLat,
+        endLng: data.endLng,
+        totalElevationGain: data.totalElevationGain,
+        tagsJson: data.tags ? JSON.stringify(data.tags) : undefined,
+        updatedAt: now,
+      },
+    });
+  }
+
+  return await prisma.segment.create({
+    data: {
+      id: createId("seg"),
+      stravaSegmentId: data.stravaSegmentId,
+      name: data.name,
+      distance: data.distance,
+      averageGrade: data.averageGrade,
+      maximumGrade: data.maximumGrade,
+      elevationHigh: data.elevationHigh,
+      elevationLow: data.elevationLow,
+      climbCategory: data.climbCategory,
+      city: data.city,
+      state: data.state,
+      country: data.country,
+      startLat: data.startLat,
+      startLng: data.startLng,
+      endLat: data.endLat,
+      endLng: data.endLng,
+      totalElevationGain: data.totalElevationGain,
+      tagsJson: data.tags ? JSON.stringify(data.tags) : null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+}
+
+export async function upsertSegmentEffort(data: {
+  segmentId: string;
+  activityId: string;
+  userId: string;
+  stravaEffortId: bigint;
+  elapsedTime: number;
+  movingTime: number;
+  startDate: string;
+  averageWatts?: number;
+  averageHr?: number;
+  maxHr?: number;
+  prRank?: number;
+  komRank?: number;
+  achievements?: unknown[];
+  deviceWatts?: boolean;
+}) {
+  const existing = await prisma.segmentEffort.findUnique({ where: { stravaEffortId: data.stravaEffortId } });
+
+  if (existing) {
+    return await prisma.segmentEffort.update({
+      where: { id: existing.id },
+      data: {
+        elapsedTime: data.elapsedTime,
+        movingTime: data.movingTime,
+        averageWatts: data.averageWatts,
+        averageHr: data.averageHr,
+        maxHr: data.maxHr,
+        prRank: data.prRank,
+        komRank: data.komRank,
+        achievementsJson: data.achievements ? JSON.stringify(data.achievements) : undefined,
+        deviceWatts: data.deviceWatts,
+      },
+    });
+  }
+
+  return await prisma.segmentEffort.create({
+    data: {
+      id: createId("sef"),
+      segmentId: data.segmentId,
+      activityId: data.activityId,
+      userId: data.userId,
+      stravaEffortId: data.stravaEffortId,
+      elapsedTime: data.elapsedTime,
+      movingTime: data.movingTime,
+      startDate: new Date(data.startDate),
+      averageWatts: data.averageWatts,
+      averageHr: data.averageHr,
+      maxHr: data.maxHr,
+      prRank: data.prRank,
+      komRank: data.komRank,
+      achievementsJson: data.achievements ? JSON.stringify(data.achievements) : null,
+      deviceWatts: data.deviceWatts,
+      createdAt: new Date(),
+    },
+  });
+}
+
+export async function listSegmentEffortsByActivity(activityId: string) {
+  return await prisma.segmentEffort.findMany({
+    where: { activityId },
+    include: { segment: true },
+    orderBy: { startDate: "asc" },
+  });
+}
+
+export async function listSegmentEffortsBySegment(segmentId: string, userId: string) {
+  return await prisma.segmentEffort.findMany({
+    where: { segmentId, userId },
+    include: { activity: { select: { id: true, name: true, startTime: true } } },
+    orderBy: { startDate: "desc" },
+  });
+}
+
+export async function listUserSegments(userId: string) {
+  const efforts = await prisma.segmentEffort.findMany({
+    where: { userId },
+    select: { segmentId: true },
+    distinct: ["segmentId"],
+  });
+  const segmentIds = efforts.map((e) => e.segmentId);
+  if (!segmentIds.length) return [];
+  return await prisma.segment.findMany({
+    where: { id: { in: segmentIds } },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function listAllSegmentEffortsByUser(userId: string) {
+  return await prisma.segmentEffort.findMany({
+    where: { userId },
+    include: { segment: true },
+    orderBy: { startDate: "desc" },
+  });
+}
+
+export async function countActivitiesWithSegments(userId: string) {
+  const result = await prisma.segmentEffort.findMany({
+    where: { userId },
+    select: { activityId: true },
+    distinct: ["activityId"],
+  });
+  return result.length;
+}
+
+export async function countActivitiesWithoutSegments(userId: string) {
+  // Activities from Strava that don't have any segment efforts
+  const allStrava = await prisma.activity.count({
+    where: { userId, source: "strava" },
+  });
+  const withSegments = await countActivitiesWithSegments(userId);
+  return Math.max(0, allStrava - withSegments);
+}

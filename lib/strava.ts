@@ -265,6 +265,58 @@ function normalizeStravaStreams(payload: unknown) {
   return normalized;
 }
 
+export type StravaSegmentEffortPayload = {
+  id: number;
+  elapsed_time: number;
+  moving_time: number;
+  start_date: string;
+  average_watts?: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  pr_rank?: number | null;
+  kom_rank?: number | null;
+  achievements?: { type_id: number; type: string; rank: number }[];
+  device_watts?: boolean;
+  segment: {
+    id: number;
+    name: string;
+    distance: number;
+    average_grade: number;
+    maximum_grade: number;
+    elevation_high: number;
+    elevation_low: number;
+    climb_category: number;
+    city?: string;
+    state?: string;
+    country?: string;
+    start_latlng?: [number, number];
+    end_latlng?: [number, number];
+    total_elevation_gain?: number;
+  };
+};
+
+export async function fetchStravaActivityDetail(activityId: string, accessToken: string) {
+  const normalizedId = activityId.startsWith("strava:") ? activityId.slice("strava:".length) : activityId;
+  const url = new URL(`${STRAVA_API_BASE_URL}/activities/${normalizedId}`);
+  url.searchParams.set("include_all_efforts", "true");
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Strava 活动详情获取失败：${response.status} ${text}`);
+  }
+
+  const payload = (await response.json()) as { segment_efforts?: StravaSegmentEffortPayload[] };
+  return payload.segment_efforts ?? [];
+}
+
 export async function fetchStravaActivityStreams(activityId: string, accessToken: string) {
   const normalizedActivityId = activityId.startsWith("strava:") ? activityId.slice("strava:".length) : activityId;
   const url = new URL(`${STRAVA_API_BASE_URL}/activities/${normalizedActivityId}/streams`);

@@ -151,11 +151,12 @@ model Activity {
   rawStreamsJson   String?
   createdAt        DateTime
   updatedAt        DateTime
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   fuelLog          FuelLog?
   aiReport         AiReport?
   aiChatMessages   AiChatMessage[]
   aliases          ActivityAlias[]
+  segmentEfforts   SegmentEffort[]
 
   @@unique([userId, externalActivityId])
   @@index([userId, startTime])
@@ -269,4 +270,58 @@ model AnalyticsAiChatMessage {
   createdAt  DateTime
 
   @@index([userId, createdAt])
+}
+
+model Segment {
+  id                 String          @id
+  stravaSegmentId    Int             @unique
+  name               String
+  distance           Float
+  averageGrade       Float
+  maximumGrade       Float?
+  elevationHigh      Float?
+  elevationLow       Float?
+  climbCategory      Int             @default(0)
+  city               String?
+  state              String?
+  country            String?
+  startLat           Float?
+  startLng           Float?
+  endLat             Float?
+  endLng             Float?
+  totalElevationGain Float?
+  tagsJson           String?
+  createdAt          DateTime
+  updatedAt          DateTime
+  efforts            SegmentEffort[]
+
+  @@index([climbCategory])
+  @@index([name])
+}
+
+model SegmentEffort {
+  id               String   @id
+  segmentId        String
+  activityId       String
+  userId           String
+  stravaEffortId   BigInt   @unique
+  elapsedTime      Int
+  movingTime       Int
+  startDate        DateTime
+  averageWatts     Int?
+  averageHr        Float?
+  maxHr            Int?
+  prRank           Int?
+  komRank          Int?
+  achievementsJson String?
+  deviceWatts      Boolean?
+  createdAt        DateTime
+  segment          Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  activity         Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([segmentId, activityId, stravaEffortId])
+  @@index([userId, segmentId, startDate])
+  @@index([userId, prRank])
+  @@index([activityId])
+  @@index([segmentId, elapsedTime])
 }
