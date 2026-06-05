@@ -247,6 +247,48 @@ export default async function SettingsPage({
         </div>
       </section>
 
+      {/* Strava → intervals.icu 数据完整性引导 */}
+      <section className="panel" style={{ background: "rgba(124,58,237,0.04)", borderLeft: "4px solid #7c3aed", padding: "18px 22px", marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <span style={{ fontSize: "1.6rem", lineHeight: 1 }}>⚡</span>
+          <div>
+            <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Strava 用户必读 — intervals.icu 数据完整性</h3>
+            <p style={{ margin: "0 0 8px", fontSize: "0.88rem", color: "var(--muted)", lineHeight: 1.6 }}>
+              如果你的 intervals.icu 活动来自 Strava 同步，<strong style={{ color: "var(--text)" }}>API 拉到的可能是空记录</strong>（功率/心率/TSS 全为 0）。
+              这是 intervals.icu 的已知限制，不是我们的 bug。
+            </p>
+            <p style={{ margin: "0 0 10px", fontSize: "0.88rem", color: "var(--muted)", lineHeight: 1.6 }}>
+              <strong style={{ color: "var(--text)" }}>解决方案</strong>：部署一个免费的自动同步工具（GitHub Actions），它会把 Strava 活动重新上传到 intervals.icu，
+              让数据变为 API 可读。整个过程 10 分钟配置，之后完全自动、不产生重复、不影响训练负荷计算。
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <a
+                href="https://github.com/CarnoZhao/intervals-icu-sync"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 16px",
+                  background: "#7c3aed",
+                  color: "white",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  fontSize: "0.88rem",
+                  fontWeight: 600,
+                }}
+              >
+                📖 查看部署教程 (GitHub)
+              </a>
+              <span style={{ fontSize: "0.78rem", color: "var(--muted)", display: "flex", alignItems: "center" }}>
+                已部署此工具的用户：intervals.icu 数据自动完整，无需额外操作
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="settings-columns">
         <div className="panel">
           <h2>intervals.icu</h2>
