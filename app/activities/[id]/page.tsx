@@ -429,8 +429,8 @@ export default async function ActivityDetailPage({
         }
       />
 
-      {/* §赛段 — 本次活动的赛段列表 */}
-      {segmentEfforts.length > 0 && (
+      {/* §赛段 — 本次活动的赛段列表 / 或引导补拉 */}
+      {segmentEfforts.length > 0 ? (
         <SegmentsSection
           efforts={segmentEfforts.map((e) => ({
             id: e.id,
@@ -465,6 +465,19 @@ export default async function ActivityDetailPage({
             komRank: e.komRank,
           }))}
         />
+      ) : (
+        <div className="analytics-card" style={{ padding: 20, color: "var(--muted)", fontSize: "0.88rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <strong style={{ color: "var(--text)" }}>🏔 赛段</strong>
+            <span style={{ fontSize: "0.75rem", padding: "2px 8px", borderRadius: 4, background: "#fef3c7", color: "#92400e" }}>暂无数据</span>
+          </div>
+          <p style={{ margin: "0 0 8px" }}>
+            此活动尚未拉取赛段信息。可能原因: ① 后台补拉队列还在处理中 ② 此活动缺少流数据 ③ 此路线没有经过任何 Strava 赛段。
+          </p>
+          <a href="/analytics/segments" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.85rem" }}>
+            ▶ 前往赛段页面查看补拉进度
+          </a>
+        </div>
       )}
 
       {/* §E 深度数据分析 (默认全展开) */}

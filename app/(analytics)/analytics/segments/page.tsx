@@ -86,7 +86,7 @@ export default async function SegmentsPage() {
             你有 <strong>{activities.length}</strong> 条活动，但尚未拉取赛段信息。
             赛段数据来自 intervals.icu，需要先确保活动已同步且有流数据 (watts/heartrate/altitude)。
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+          <div style={{ marginBottom: 16, minWidth: 0 }}>
             <SegmentBackfillPanel stats={{
               totalActivities: activities.length,
               stravaActivities: stravaCount,
