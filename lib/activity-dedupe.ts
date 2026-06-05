@@ -12,6 +12,12 @@ type DedupeResult = {
     activity: Activity;
     matchedActivityId: string;
   }>;
+  // v2: 用更完整的 incoming 数据覆盖已入库的空壳
+  merged: Array<{
+    activity: Activity;         // 合并后的 activity (用 incoming 丰富 existing)
+    matchedActivityId: string;  // 已入库的 activity id (用这个 id 做 update)
+    reason: string;
+  }>;
 };
 
 function getSportType(activity: Activity) {
@@ -47,9 +53,66 @@ export function isLikelyDuplicateActivity(left: Activity, right: Activity) {
   return matchingSignals >= 2;
 }
 
+/**
+ * 数据丰富度评分
+ * 场景: intervals.icu API 返回的 Strava 来源活动是空壳 (0 功率/心率/TSS),
+ * 但 Strava 直连的同一条活动有完整数据。旧 dedupe skip 空壳永留。
+ * 新 merge: incoming 更丰富时用 incoming 字段覆盖 existing。
+ */
+function richnessScore(activity: Activity): number {
+  let score = 0;
+  if (activity.avgPower && activity.avgPower > 0) score += 3;
+  if (activity.np && activity.np > 0) score += 3;
+  if (activity.avgHr && activity.avgHr > 0) score += 2;
+  if (activity.tss && activity.tss > 0) score += 2;
+  if (activity.ifValue && activity.ifValue > 0) score += 2;
+  if (activity.distanceKm > 0) score += 1;
+  if (activity.elevationM > 0) score += 1;
+  if (activity.recentCtl !== undefined) score += 1;
+  const rawKeys = activity.rawSummaryJson ? Object.keys(activity.rawSummaryJson).length : 0;
+  score += Math.min(rawKeys, 10);
+  const streamKeys = activity.rawStreamsJson ? Object.keys(activity.rawStreamsJson).length : 0;
+  score += streamKeys * 2;
+  return score;
+}
+
+function mergeActivities(existing: Activity, incoming: Activity): Activity {
+  return {
+    ...existing,
+    name: (incoming.name && incoming.name !== "Ride" && incoming.name !== "Strava Activity")
+      ? incoming.name
+      : existing.name,
+    distanceKm: incoming.distanceKm > 0 ? incoming.distanceKm : existing.distanceKm,
+    movingTimeMin: incoming.movingTimeMin > 0 ? incoming.movingTimeMin : existing.movingTimeMin,
+    elevationM: incoming.elevationM > 0 ? incoming.elevationM : existing.elevationM,
+    avgSpeedKmh: incoming.avgSpeedKmh > 0 ? incoming.avgSpeedKmh : existing.avgSpeedKmh,
+    avgHr: incoming.avgHr ?? existing.avgHr,
+    avgPower: incoming.avgPower ?? existing.avgPower,
+    np: incoming.np ?? existing.np,
+    ifValue: incoming.ifValue ?? existing.ifValue,
+    tss: incoming.tss ?? existing.tss,
+    temperatureC: incoming.temperatureC ?? existing.temperatureC,
+    recentCtl: incoming.recentCtl ?? existing.recentCtl,
+    recentAtl: incoming.recentAtl ?? existing.recentAtl,
+    recentForm: incoming.recentForm ?? existing.recentForm,
+    rawSummaryJson: Object.keys(incoming.rawSummaryJson ?? {}).length >= Object.keys(existing.rawSummaryJson ?? {}).length
+      ? incoming.rawSummaryJson
+      : existing.rawSummaryJson,
+    rawStreamsJson: Object.keys(incoming.rawStreamsJson ?? {}).length >= Object.keys(existing.rawStreamsJson ?? {}).length
+      ? incoming.rawStreamsJson
+      : existing.rawStreamsJson,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+const RICHNESS_MERGE_THRESHOLD = 3;
+
+export { richnessScore, mergeActivities };
+
 export function dedupeIncomingActivities(existing: Activity[], incoming: Activity[], aliases: ActivityAlias[] = []): DedupeResult {
   const accepted: Activity[] = [];
   const skipped: DedupeResult["skipped"] = [];
+  const merged: DedupeResult["merged"] = [];
   const pool = [...existing];
   const aliasIndex = new Map(aliases.map((item) => [`${item.source}:${item.externalActivityId}`, item.activityId]));
 
@@ -58,11 +121,24 @@ export function dedupeIncomingActivities(existing: Activity[], incoming: Activit
     const matched =
       (aliasActivityId ? pool.find((candidate) => candidate.id === aliasActivityId) : undefined) ??
       pool.find((candidate) => isLikelyDuplicateActivity(candidate, activity));
+
     if (matched) {
-      skipped.push({
-        activity,
-        matchedActivityId: matched.id,
-      });
+      const existingRichness = richnessScore(matched);
+      const incomingRichness = richnessScore(activity);
+
+      if (incomingRichness > existingRichness + RICHNESS_MERGE_THRESHOLD) {
+        const mergedActivity = mergeActivities(matched, activity);
+        merged.push({
+          activity: mergedActivity,
+          matchedActivityId: matched.id,
+          reason: `incoming ${activity.source} 更丰富 (${incomingRichness} vs existing ${existingRichness})`,
+        });
+      } else {
+        skipped.push({
+          activity,
+          matchedActivityId: matched.id,
+        });
+      }
       continue;
     }
 
@@ -70,5 +146,5 @@ export function dedupeIncomingActivities(existing: Activity[], incoming: Activit
     pool.push(activity);
   }
 
-  return { accepted, skipped };
+  return { accepted, skipped, merged };
 }
