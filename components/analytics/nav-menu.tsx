@@ -17,6 +17,7 @@ import {
   Trophy,
   Zap,
   Menu,
+  Mountain,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/activities", label: "运动记录", icon: Gauge },
   { href: "/analytics/prediction", label: "表现预测", icon: Brain },
   { href: "/analytics/leaderboard", label: "排行榜", icon: Trophy },
+  { href: "/analytics/segments", label: "赛段", icon: Mountain },
   { href: "/analytics/tools", label: "数据工具", icon: Database },
   { href: "/analytics/feedback", label: "意见反馈", icon: MessageSquare },
 ];

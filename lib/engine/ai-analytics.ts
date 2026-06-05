@@ -58,6 +58,13 @@ export interface AnalyticsAiContext {
     z6_pct?: number;
     z7_pct?: number;
   };
+  segment_summary?: {
+    total_segments: number;
+    total_efforts: number;
+    prs_last_90d: number;
+    top_climb_category: number;
+    recent_improvements: { segment_name: string; improvement_pct: number }[];
+  };
   // 新增: 骑行能力分级
   level_evaluation?: LevelEvaluation;
   upgrade_plan?: UpgradePlan;
@@ -113,6 +120,9 @@ function buildSystemPrompt(): string {
     "  • 训练建议直接引用 upgrade_plan, 不要另起炉灶",
     "  • ETA 引用 eta_prediction.weeks 和 eta_prediction.confidence, 不要自己估时间",
     "  • 严禁自己重算 W/kg 或重新判段位 — engine 已经算好, AI 只负责叙述",
+    "如果 segment_summary 存在且 total_segments > 0:",
+    "  • 在报告中提及赛段进步情况 (prs_last_90d)",
+    "  • 赛段分析与能力水位对齐 — 同一段位体系",
   ].join(" ");
 }
 
@@ -207,12 +217,12 @@ export async function generateAnalyticsReport(context: AnalyticsAiContext): Prom
 /**
  * Build analytics context from user data
  */
-export function buildAnalyticsContext(input: {
+export async function buildAnalyticsContext(input: {
   user: User;
   activities: Activity[];
   pmcData: PmcDataPoint[];
   powerCurve: PowerCurvePoint[];
-}): AnalyticsAiContext {
+}): Promise<AnalyticsAiContext> {
   const { user, activities, pmcData, powerCurve } = input;
 
   // Recent 90 days activities
@@ -279,6 +289,28 @@ export function buildAnalyticsContext(input: {
   const upgradePlan = generateUpgradePlan(levelEvaluation);
   const etaPrediction = predictEta(levelEvaluation, pmcData);
 
+  // 赛段汇总 (若有数据)
+  let segmentSummary: AnalyticsAiContext["segment_summary"] = undefined;
+  try {
+    const { listUserSegments, listAllSegmentEffortsByUser } = await import("@/lib/storage");
+    const segments = await listUserSegments(user.id);
+    const efforts = await listAllSegmentEffortsByUser(user.id);
+    if (segments.length > 0) {
+      const d90 = Date.now() - 90 * 86400000;
+      const recentPrs = efforts.filter((e) => e.prRank === 1 && new Date(e.startDate).getTime() >= d90);
+      const topClimb = Math.max(...segments.map((s) => s.climbCategory), 0);
+      segmentSummary = {
+        total_segments: segments.length,
+        total_efforts: efforts.length,
+        prs_last_90d: recentPrs.length,
+        top_climb_category: topClimb,
+        recent_improvements: [],
+      };
+    }
+  } catch {
+    // 赛段数据不可用时静默跳过
+  }
+
   return {
     user: {
       weight_kg: weightKg ?? undefined,
@@ -315,6 +347,7 @@ export function buildAnalyticsContext(input: {
       activities_with_hr_pct: hrPct,
     },
     zone_distribution: zoneDistribution,
+    segment_summary: segmentSummary,
     level_evaluation: levelEvaluation,
     upgrade_plan: upgradePlan,
     eta_prediction: etaPrediction,

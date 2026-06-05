@@ -46,7 +46,7 @@ export async function POST() {
     const weightKg = user.weightKg ?? user.syncedWeightKg;
     const { curve } = buildPowerCurve(activities, weightKg ?? undefined);
 
-    const context = buildAnalyticsContext({
+    const context = await buildAnalyticsContext({
       user,
       activities,
       pmcData,
