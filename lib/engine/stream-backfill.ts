@@ -182,6 +182,22 @@ export async function backfillActivityStreams(options: BackfillOptions): Promise
           continue;
         }
         streams = await fetchIntervalsActivityStreams(activity.externalActivityId, intervalsApiKey);
+
+        // intervals.icu API 对 Strava 来源活动返回空 streams → 自动 fallback:
+        // 如果用户配了 intervals.icu 邮箱+密码, 用 Web Session 下载 .fit 重传,
+        // 让 source 变 UPLOAD, 然后重拉 streams
+        if (!hasUsefulStream(streams) && user.intervalsEmailEncrypted && user.intervalsPasswordEncrypted) {
+          try {
+            const { reloadStravaActivitiesViaWeb } = await import("@/lib/intervals-web");
+            // 只修复这一条 (用 activityId 对应的时间 ± 1 天做窗口)
+            await reloadStravaActivitiesViaWeb(user, 3);
+            // 重传后等 2 秒让 intervals.icu 处理, 再重拉一次
+            await sleep(2000);
+            streams = await fetchIntervalsActivityStreams(activity.externalActivityId, intervalsApiKey);
+          } catch {
+            // fallback 失败不阻塞
+          }
+        }
       } else if (activity.source === "strava") {
         if (!stravaTokenInfo) {
           progress.skipped++;
@@ -236,6 +252,18 @@ export async function backfillSingleActivity(userId: string, activityId: string)
       if (!user.intervalsApiKeyEncrypted) return { success: false, error: "未配置 intervals.icu API Key" };
       const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
       streams = await fetchIntervalsActivityStreams(activity.externalActivityId, apiKey);
+
+      // intervals.icu API 对 Strava 来源返回空 → 自动 .fit 重传 fallback
+      if (!hasUsefulStream(streams) && user.intervalsEmailEncrypted && user.intervalsPasswordEncrypted) {
+        try {
+          const { reloadStravaActivitiesViaWeb } = await import("@/lib/intervals-web");
+          await reloadStravaActivitiesViaWeb(user, 7);
+          await new Promise((r) => setTimeout(r, 2000));
+          streams = await fetchIntervalsActivityStreams(activity.externalActivityId, apiKey);
+        } catch {
+          // fallback 失败不阻塞
+        }
+      }
     } else if (activity.source === "strava") {
       const tokenInfo = await ensureStravaToken(user);
       if (!tokenInfo) return { success: false, error: "Strava 认证失效，请重新连接" };
@@ -243,7 +271,12 @@ export async function backfillSingleActivity(userId: string, activityId: string)
     }
 
     if (!streams || !hasUsefulStream(streams)) {
-      return { success: false, error: "来源 API 未返回有效的流数据" };
+      return {
+        success: false,
+        error: user.intervalsEmailEncrypted
+          ? "来源 API 未返回有效的流数据 (已尝试 .fit 重传, 可能活动尚未被 intervals.icu 分析完成)"
+          : "来源 API 未返回有效的流数据 — 如果活动来自 Strava, 请在设置中填写 intervals.icu 登录邮箱和密码以启用自动修复",
+      };
     }
 
     await updateActivityStreams(activity.id, streams);
