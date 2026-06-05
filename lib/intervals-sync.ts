@@ -159,6 +159,19 @@ export async function runIntervalsSync(input: {
     ),
   );
 
+  // 自动修复 Strava 空壳: 用户配了 intervals.icu 邮箱+密码 → 下载 .fit 重传
+  let stravaReloaded = 0;
+  if (input.user.intervalsEmailEncrypted && input.user.intervalsPasswordEncrypted) {
+    try {
+      const { reloadStravaActivitiesViaWeb } = await import("@/lib/intervals-web");
+      const windowDays = mode === "full" ? 180 : 14;
+      const result = await reloadStravaActivitiesViaWeb(input.user, windowDays);
+      stravaReloaded = result.uploaded;
+    } catch {
+      // Web Session 失败不阻塞正常 sync
+    }
+  }
+
   return {
     mode,
     oldest,
@@ -167,6 +180,7 @@ export async function runIntervalsSync(input: {
     skipped: deduped.skipped.length,
     merged: deduped.merged.length,
     streamBackfillEnqueued: backfillBatch.length,
+    stravaReloaded,
   };
 }
 
