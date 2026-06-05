@@ -13,6 +13,7 @@ import { ActivityFuelRecoverySection } from "@/components/activity-detail/fuel-r
 import { ActivityFuelLogForm } from "@/components/activity-detail/fuel-log-form";
 import { ActivityRecoveryCards } from "@/components/activity-detail/recovery-cards";
 import { ActivityDeepDataSection } from "@/components/activity-detail/deep-data-section";
+import { SegmentsSection } from "@/components/activity-detail/segments-section";
 import { ActivityGeekZone } from "@/components/activity-detail/geek-zone";
 import { ActivityFooterActions } from "@/components/activity-detail/footer-actions";
 import { buildActivityGlanceTabs } from "@/lib/activity-detail-glance";
@@ -34,6 +35,7 @@ import {
   listActivityAliasesByActivityId,
   listAiChatMessagesByActivityId,
   listRidePlansByUser,
+  listSegmentEffortsByActivity,
   saveUser,
   updateActivityStreams,
 } from "@/lib/storage";
@@ -257,6 +259,9 @@ export default async function ActivityDetailPage({
     features,
   });
 
+  // ───── §赛段 (用于 SegmentsSection) ─────
+  const segmentEfforts = await listSegmentEffortsByActivity(displayActivity.id);
+
   // ───── §E stream chart (用于 ActivityDeepDataSection) ─────
   const streamsRaw = displayActivity.rawStreamsJson as Record<string, unknown> | null;
   const hasStreamsForChart =
@@ -423,6 +428,44 @@ export default async function ActivityDetailPage({
           <ActivityRecoveryCards recovery={recovery} review={review} enabled={config.featureRecovery} />
         }
       />
+
+      {/* §赛段 — 本次活动的赛段列表 */}
+      {segmentEfforts.length > 0 && (
+        <SegmentsSection
+          efforts={segmentEfforts.map((e) => ({
+            id: e.id,
+            segment: {
+              id: e.segment.id,
+              stravaSegmentId: e.segment.stravaSegmentId,
+              name: e.segment.name,
+              distance: e.segment.distance,
+              averageGrade: e.segment.averageGrade,
+              maximumGrade: e.segment.maximumGrade ?? undefined,
+              elevationHigh: e.segment.elevationHigh ?? undefined,
+              elevationLow: e.segment.elevationLow ?? undefined,
+              climbCategory: e.segment.climbCategory,
+              city: e.segment.city ?? undefined,
+              state: e.segment.state ?? undefined,
+              country: e.segment.country ?? undefined,
+              startLat: e.segment.startLat ?? undefined,
+              startLng: e.segment.startLng ?? undefined,
+              endLat: e.segment.endLat ?? undefined,
+              endLng: e.segment.endLng ?? undefined,
+              totalElevationGain: e.segment.totalElevationGain ?? undefined,
+              tags: e.segment.tagsJson ? JSON.parse(e.segment.tagsJson) : undefined,
+              createdAt: e.segment.createdAt.toISOString(),
+              updatedAt: e.segment.updatedAt.toISOString(),
+            },
+            elapsedTime: e.elapsedTime,
+            movingTime: e.movingTime,
+            averageWatts: e.averageWatts,
+            averageHr: e.averageHr,
+            maxHr: e.maxHr,
+            prRank: e.prRank,
+            komRank: e.komRank,
+          }))}
+        />
+      )}
 
       {/* §E 深度数据分析 (默认全展开) */}
       <ActivityDeepDataSection
