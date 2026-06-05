@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const body = await request.json().catch(() => ({}));
-    const limit = Math.min(Math.max(parseInt(body.limit, 10) || 50, 1), 200);
+    const limit = Math.max(parseInt(body.limit, 10) || 9999, 1);
 
     const activities = await listActivitiesByUser(user.id);
     const withSegmentsCount = await countActivitiesWithSegments(user.id);

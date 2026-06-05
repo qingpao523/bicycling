@@ -12,9 +12,9 @@ export function SegmentBackfillPanel({ stats }: Props) {
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch("/api/analytics/segments/backfill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 50 }) });
+      const res = await fetch("/api/analytics/segments/backfill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 9999 }) });
       const data = await res.json();
-      setResult(res.ok ? `已入队 ${data.enqueued} 条, 后台处理中 (每条约 6 秒)` : `失败: ${data.error}`);
+      setResult(res.ok ? `已入队 ${data.enqueued} 条, 后台处理中 (每条约 6 秒, 预计 ${Math.ceil((data.enqueued * 6) / 60)} 分钟)` : `失败: ${data.error}`);
     } catch { setResult("网络异常"); }
     setLoading(false);
   };
@@ -37,7 +37,7 @@ export function SegmentBackfillPanel({ stats }: Props) {
       <button onClick={run} disabled={loading} style={{
         padding: "8px 16px", background: "var(--accent, #1f57d6)", color: "white", border: "none", borderRadius: 8, fontSize: "0.88rem", cursor: loading ? "wait" : "pointer", fontWeight: 600, opacity: loading ? 0.7 : 1,
       }}>
-        {loading ? "处理中..." : `补拉赛段数据 (最多 50 条)`}
+        {loading ? "处理中..." : `一键补拉全部赛段数据`}
       </button>
       {result && <p style={{ marginTop: 8, fontSize: "0.82rem", color: "var(--muted)" }}>{result}</p>}
     </div>

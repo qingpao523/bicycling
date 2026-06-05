@@ -26,7 +26,7 @@ export function StreamBackfillPanel() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(9999);
   const [source, setSource] = useState<"all" | "intervals.icu" | "strava">("all");
   const [onlyWithPower, setOnlyWithPower] = useState(true);
   const [error, setError] = useState("");
@@ -184,17 +184,17 @@ export function StreamBackfillPanel() {
         <h3 style={{ margin: 0, fontSize: "1rem" }}>补拉配置</h3>
         <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.88rem" }}>
-            最多补拉
+            补拉数量
             <input
               type="number"
               min={1}
-              max={500}
+              max={9999}
               value={limit}
-              onChange={(e) => setLimit(Math.max(1, Math.min(500, parseInt(e.target.value) || 50)))}
+              onChange={(e) => setLimit(Math.max(1, parseInt(e.target.value) || 9999))}
               disabled={running}
               style={{ width: 80, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--line)" }}
             />
-            条
+            条 (默认全部)
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.88rem" }}>
             数据来源
