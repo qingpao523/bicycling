@@ -196,6 +196,26 @@ export default async function SettingsPage({
                     placeholder={user.intervalsApiKeyEncrypted ? "已配置，留空不改" : "输入你的 API key"}
                   />
                 </label>
+                <label>
+                  intervals.icu 登录邮箱
+                  <input
+                    type="email"
+                    name="intervalsEmail"
+                    defaultValue=""
+                    placeholder={user.intervalsEmailEncrypted ? "已配置，留空不改" : "选填，用于自动修复 Strava 空壳"}
+                  />
+                  <span className="muted">填写后系统自动修复 Strava 来源的空数据</span>
+                </label>
+                <label>
+                  intervals.icu 登录密码
+                  <input
+                    type="password"
+                    name="intervalsPassword"
+                    defaultValue=""
+                    placeholder={user.intervalsPasswordEncrypted ? "已配置，留空不改" : "选填，配合邮箱使用"}
+                  />
+                  <span className="muted">加密存储，仅用于下载 .fit 文件重传</span>
+                </label>
               </div>
               <button type="submit" className="primary">
                 保存个人设置

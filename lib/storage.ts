@@ -99,6 +99,8 @@ function toUser(record: {
   syncedRestingHr: number | null;
   intervalsAthleteId: string | null;
   intervalsApiKeyEncrypted: string | null;
+  intervalsEmailEncrypted: string | null;
+  intervalsPasswordEncrypted: string | null;
   intervalsRawProfileJson: string | null;
   intervalsRawWellnessJson: string | null;
   stravaAthleteId: string | null;
@@ -131,6 +133,8 @@ function toUser(record: {
     syncedRestingHr: record.syncedRestingHr ?? undefined,
     intervalsAthleteId: record.intervalsAthleteId ?? undefined,
     intervalsApiKeyEncrypted: record.intervalsApiKeyEncrypted ?? undefined,
+    intervalsEmailEncrypted: record.intervalsEmailEncrypted ?? undefined,
+    intervalsPasswordEncrypted: record.intervalsPasswordEncrypted ?? undefined,
     intervalsRawProfileJson: parseJson<Record<string, unknown>>(record.intervalsRawProfileJson, {}),
     intervalsRawWellnessJson: parseJson<Record<string, unknown>[] | Record<string, unknown>>(record.intervalsRawWellnessJson, []),
     stravaAthleteId: record.stravaAthleteId ?? undefined,
@@ -781,6 +785,8 @@ export async function saveUser(user: User) {
       syncedRestingHr: user.syncedRestingHr,
       intervalsAthleteId: user.intervalsAthleteId,
       intervalsApiKeyEncrypted: user.intervalsApiKeyEncrypted,
+      intervalsEmailEncrypted: user.intervalsEmailEncrypted,
+      intervalsPasswordEncrypted: user.intervalsPasswordEncrypted,
       intervalsRawProfileJson: stringifyJson(user.intervalsRawProfileJson),
       intervalsRawWellnessJson: stringifyJson(user.intervalsRawWellnessJson),
       stravaAthleteId: user.stravaAthleteId,
@@ -812,6 +818,8 @@ export async function saveUser(user: User) {
       syncedRestingHr: user.syncedRestingHr,
       intervalsAthleteId: user.intervalsAthleteId,
       intervalsApiKeyEncrypted: user.intervalsApiKeyEncrypted,
+      intervalsEmailEncrypted: user.intervalsEmailEncrypted,
+      intervalsPasswordEncrypted: user.intervalsPasswordEncrypted,
       intervalsRawProfileJson: stringifyJson(user.intervalsRawProfileJson),
       intervalsRawWellnessJson: stringifyJson(user.intervalsRawWellnessJson),
       stravaAthleteId: user.stravaAthleteId,

@@ -14,6 +14,8 @@ export async function POST(request: Request) {
   const user = await requireUser();
   const formData = await request.formData();
   const intervalsApiKey = String(formData.get("intervalsApiKey") ?? "");
+  const intervalsEmail = String(formData.get("intervalsEmail") ?? "").trim();
+  const intervalsPassword = String(formData.get("intervalsPassword") ?? "").trim();
 
   await saveUser({
     ...user,
@@ -25,6 +27,8 @@ export async function POST(request: Request) {
     restingHr: numberValue(formData.get("restingHr")),
     intervalsAthleteId: String(formData.get("intervalsAthleteId") ?? "").trim() || undefined,
     intervalsApiKeyEncrypted: intervalsApiKey ? encryptSecret(intervalsApiKey) : user.intervalsApiKeyEncrypted,
+    intervalsEmailEncrypted: intervalsEmail ? encryptSecret(intervalsEmail) : user.intervalsEmailEncrypted,
+    intervalsPasswordEncrypted: intervalsPassword ? encryptSecret(intervalsPassword) : user.intervalsPasswordEncrypted,
     updatedAt: new Date().toISOString(),
   });
 

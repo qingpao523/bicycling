@@ -50,9 +50,11 @@ model User {
   syncedThresholdHr        Int?
   syncedMaxHr              Int?
   syncedRestingHr          Int?
-  intervalsAthleteId       String?
-  intervalsApiKeyEncrypted String?
-  intervalsRawProfileJson  String?
+  intervalsAthleteId           String?
+  intervalsApiKeyEncrypted     String?
+  intervalsEmailEncrypted      String?
+  intervalsPasswordEncrypted   String?
+  intervalsRawProfileJson      String?
   intervalsRawWellnessJson String?
   stravaAthleteId          String?
   stravaScopes             String?

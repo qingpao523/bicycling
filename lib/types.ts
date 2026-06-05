@@ -27,6 +27,8 @@ export interface User {
   syncedRestingHr?: number;
   intervalsAthleteId?: string;
   intervalsApiKeyEncrypted?: string;
+  intervalsEmailEncrypted?: string;
+  intervalsPasswordEncrypted?: string;
   intervalsRawProfileJson?: Record<string, unknown>;
   intervalsRawWellnessJson?: Record<string, unknown>[] | Record<string, unknown>;
   stravaAthleteId?: string;
