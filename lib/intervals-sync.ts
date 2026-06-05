@@ -146,6 +146,22 @@ export async function runIntervalsSync(input: {
     });
   }
 
+  // Auto-enqueue segment_fetch jobs (走 ICU API, 不需要 Strava token)
+  const segmentBatch = deduped.accepted.filter(SHOULD_BACKFILL);
+  for (let i = 0; i < segmentBatch.length; i++) {
+    const act = segmentBatch[i];
+    const availableAt = new Date(Date.now() + (backfillBatch.length + i) * 6000).toISOString();
+    await enqueueSyncJob({
+      userId: input.user.id,
+      source: "intervals.icu",
+      jobType: "segment_fetch",
+      reason: "auto_after_sync",
+      externalRef: `${act.externalActivityId}:segments`,
+      payload: { activityId: act.id, externalActivityId: act.externalActivityId },
+      availableAt,
+    });
+  }
+
   await Promise.all(
     deduped.skipped.map((item) =>
       saveActivityAlias({
@@ -180,6 +196,7 @@ export async function runIntervalsSync(input: {
     skipped: deduped.skipped.length,
     merged: deduped.merged.length,
     streamBackfillEnqueued: backfillBatch.length,
+    segmentFetchEnqueued: segmentBatch.length,
     stravaReloaded,
   };
 }

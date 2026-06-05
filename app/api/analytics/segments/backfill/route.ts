@@ -13,18 +13,18 @@ export async function POST(request: Request) {
 
     // Find Strava activities that might not have segments yet
     // (we check by counting, not per-activity, for performance)
-    const stravaActivities = activities
-      .filter((a) => a.source === "strava" || a.externalActivityId.startsWith("strava:"))
+    // 所有活动都可以拉赛段 (走 ICU API, 不限 Strava 来源)
+    const candidateActivities = activities
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
       .slice(0, limit);
 
     let enqueued = 0;
-    for (let i = 0; i < stravaActivities.length; i++) {
-      const act = stravaActivities[i];
+    for (let i = 0; i < candidateActivities.length; i++) {
+      const act = candidateActivities[i];
       const availableAt = new Date(Date.now() + i * 6000).toISOString();
       await enqueueSyncJob({
         userId: user.id,
-        source: "strava",
+        source: act.source,
         jobType: "segment_fetch",
         reason: "manual_backfill",
         externalRef: `${act.externalActivityId}:segments`,
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       enqueued,
-      totalStrava: stravaActivities.length,
+      totalActivities: candidateActivities.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "补拉失败";

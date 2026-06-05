@@ -213,6 +213,32 @@ function mapIntervalsActivity(item: Record<string, unknown>, userId: string): Ac
   };
 }
 
+export type IcuSegment = {
+  id: number;
+  segment_id: number;
+  name: string;
+  start_index: number;
+  end_index: number;
+  starred: boolean;
+};
+
+export async function fetchIntervalsActivitySegments(activityId: string, apiKey: string): Promise<IcuSegment[]> {
+  try {
+    const response = await fetch(`${baseUrl}/activity/${activityId}/segments`, {
+      headers: {
+        Authorization: basicAuthHeader(apiKey),
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) return [];
+    return (await response.json()) as IcuSegment[];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchIntervalsActivityStreams(activityId: string, apiKey: string) {
   const url = `${baseUrl}/activity/${activityId}/streams.json?types=${streamTypes.join(",")}`;
 

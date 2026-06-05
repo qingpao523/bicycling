@@ -245,12 +245,21 @@ export async function handleStravaStreamBackfillJob(user: User, job: SyncJob) {
   return { fetched: true, keys: Object.keys(streams) };
 }
 
-export async function handleStravaSegmentFetchJob(user: User, job: SyncJob) {
+/**
+ * 赛段拉取 handler — 走 intervals.icu API (不依赖 Strava token)
+ * GET /api/v1/activity/{id}/segments → 赛段列表 (start_index/end_index)
+ * 配合活动 streams 计算每段的时间/功率/心率
+ */
+export async function handleSegmentFetchJob(user: User, job: SyncJob) {
   const activityId = typeof job.payload?.activityId === "string" ? job.payload.activityId : undefined;
   const externalActivityId =
     typeof job.payload?.externalActivityId === "string" ? job.payload.externalActivityId : undefined;
   if (!activityId || !externalActivityId) {
     throw new Error("segment_fetch 任务缺少 activityId/externalActivityId。");
+  }
+
+  if (!user.intervalsApiKeyEncrypted) {
+    return { skipped: "未配置 intervals.icu API Key" };
   }
 
   // Skip if already has segment efforts
@@ -260,36 +269,64 @@ export async function handleStravaSegmentFetchJob(user: User, job: SyncJob) {
     return { skipped: "已存在 segment efforts", count: existing.length };
   }
 
-  const { fetchStravaActivityDetail } = await import("@/lib/strava");
-  const { accessToken } = await resolveStravaAccessToken(user);
-  const segmentEfforts = await fetchStravaActivityDetail(externalActivityId, accessToken);
+  const { decryptSecret } = await import("@/lib/crypto");
+  const { fetchIntervalsActivitySegments, fetchIntervalsActivityStreams } = await import("@/lib/intervals");
+  const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
 
-  if (!segmentEfforts.length) {
+  // 1. 从 ICU API 拉赛段列表
+  const icuSegments = await fetchIntervalsActivitySegments(externalActivityId, apiKey);
+  if (!icuSegments.length) {
     return { fetched: true, segments: 0, efforts: 0 };
   }
+
+  // 2. 拉活动 streams (需要 time/watts/heartrate 来计算每段指标)
+  const activity = await getActivity(activityId);
+  let streams = activity?.rawStreamsJson as Record<string, unknown> | undefined;
+  if (!streams || !Object.keys(streams).length) {
+    // 如果还没 streams, 尝试现拉
+    streams = await fetchIntervalsActivityStreams(externalActivityId, apiKey);
+    if (streams && Object.keys(streams).length) {
+      await updateActivityStreams(activityId, streams);
+    }
+  }
+
+  const timeArr = Array.isArray(streams?.time) ? (streams.time as number[]) : [];
+  const wattsArr = Array.isArray(streams?.watts) ? (streams.watts as number[]) : [];
+  const hrArr = Array.isArray(streams?.heartrate) ? (streams.heartrate as number[]) : [];
+  const altArr = Array.isArray(streams?.altitude) ? (streams.altitude as number[]) : [];
 
   let segmentCount = 0;
   let effortCount = 0;
 
-  for (const effort of segmentEfforts) {
-    const seg = effort.segment;
+  for (const icuSeg of icuSegments) {
+    const si = icuSeg.start_index;
+    const ei = icuSeg.end_index;
+
+    // 从 streams 计算这段的指标
+    const segTime = timeArr.length > ei ? (timeArr[ei] - timeArr[si]) : 0; // 秒
+    const segWatts = wattsArr.length > ei
+      ? Math.round(wattsArr.slice(si, ei + 1).reduce((s, w) => s + w, 0) / (ei - si + 1))
+      : undefined;
+    const segHr = hrArr.length > ei
+      ? Number((hrArr.slice(si, ei + 1).reduce((s, h) => s + h, 0) / (ei - si + 1)).toFixed(1))
+      : undefined;
+    const segMaxHr = hrArr.length > ei
+      ? Math.round(Math.max(...hrArr.slice(si, ei + 1)))
+      : undefined;
+
+    // 用 altitude 估算坡度和爬升
+    const startAlt = altArr.length > si ? altArr[si] : undefined;
+    const endAlt = altArr.length > ei ? altArr[ei] : undefined;
+    const elevGain = startAlt !== undefined && endAlt !== undefined ? Math.max(0, endAlt - startAlt) : undefined;
+
+    // 用 segment_id 做 Strava segment ID (ICU 沿用 Strava 的 segment 编号)
     const segRecord = await upsertSegment({
-      stravaSegmentId: seg.id,
-      name: seg.name,
-      distance: seg.distance,
-      averageGrade: seg.average_grade,
-      maximumGrade: seg.maximum_grade,
-      elevationHigh: seg.elevation_high,
-      elevationLow: seg.elevation_low,
-      climbCategory: seg.climb_category,
-      city: seg.city,
-      state: seg.state,
-      country: seg.country,
-      startLat: seg.start_latlng?.[0],
-      startLng: seg.start_latlng?.[1],
-      endLat: seg.end_latlng?.[0],
-      endLng: seg.end_latlng?.[1],
-      totalElevationGain: seg.total_elevation_gain,
+      stravaSegmentId: icuSeg.segment_id,
+      name: icuSeg.name,
+      distance: 0, // ICU segments API 不返回 distance, 后续可从 Strava 补
+      averageGrade: 0,
+      climbCategory: 0,
+      totalElevationGain: elevGain,
     });
     segmentCount++;
 
@@ -297,17 +334,13 @@ export async function handleStravaSegmentFetchJob(user: User, job: SyncJob) {
       segmentId: segRecord.id,
       activityId,
       userId: user.id,
-      stravaEffortId: BigInt(effort.id),
-      elapsedTime: effort.elapsed_time,
-      movingTime: effort.moving_time,
-      startDate: effort.start_date,
-      averageWatts: effort.average_watts ? Math.round(effort.average_watts) : undefined,
-      averageHr: effort.average_heartrate,
-      maxHr: effort.max_heartrate ? Math.round(effort.max_heartrate) : undefined,
-      prRank: effort.pr_rank ?? undefined,
-      komRank: effort.kom_rank ?? undefined,
-      achievements: effort.achievements,
-      deviceWatts: effort.device_watts,
+      stravaEffortId: BigInt(icuSeg.id),
+      elapsedTime: segTime,
+      movingTime: segTime,
+      startDate: activity?.startTime ?? new Date().toISOString(),
+      averageWatts: segWatts,
+      averageHr: segHr,
+      maxHr: segMaxHr,
     });
     effortCount++;
   }
