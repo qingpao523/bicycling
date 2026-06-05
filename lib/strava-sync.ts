@@ -171,6 +171,22 @@ export async function runStravaSync(input: {
     });
   }
 
+  // Auto-enqueue segment_fetch jobs for cycling activities
+  const segmentBatch = deduped.accepted.filter(SHOULD_BACKFILL);
+  for (let i = 0; i < segmentBatch.length; i++) {
+    const act = segmentBatch[i];
+    const availableAt = new Date(Date.now() + (backfillBatch.length + i) * 6000).toISOString();
+    await enqueueSyncJob({
+      userId: input.user.id,
+      source: "strava",
+      jobType: "segment_fetch",
+      reason: "auto_after_sync",
+      externalRef: `${act.externalActivityId}:segments`,
+      payload: { activityId: act.id, externalActivityId: act.externalActivityId },
+      availableAt,
+    });
+  }
+
   await Promise.all(
     deduped.skipped.map((item) =>
       saveActivityAlias({
@@ -193,6 +209,7 @@ export async function runStravaSync(input: {
     skipped: deduped.skipped.length,
     merged: deduped.merged.length,
     streamBackfillEnqueued: backfillBatch.length,
+    segmentFetchEnqueued: segmentBatch.length,
   };
 }
 
@@ -226,4 +243,74 @@ export async function handleStravaStreamBackfillJob(user: User, job: SyncJob) {
   const streams = await fetchStravaActivityStreams(externalActivityId, accessToken);
   await updateActivityStreams(activityId, streams);
   return { fetched: true, keys: Object.keys(streams) };
+}
+
+export async function handleStravaSegmentFetchJob(user: User, job: SyncJob) {
+  const activityId = typeof job.payload?.activityId === "string" ? job.payload.activityId : undefined;
+  const externalActivityId =
+    typeof job.payload?.externalActivityId === "string" ? job.payload.externalActivityId : undefined;
+  if (!activityId || !externalActivityId) {
+    throw new Error("segment_fetch 任务缺少 activityId/externalActivityId。");
+  }
+
+  // Skip if already has segment efforts
+  const { listSegmentEffortsByActivity, upsertSegment, upsertSegmentEffort } = await import("@/lib/storage");
+  const existing = await listSegmentEffortsByActivity(activityId);
+  if (existing.length > 0) {
+    return { skipped: "已存在 segment efforts", count: existing.length };
+  }
+
+  const { fetchStravaActivityDetail } = await import("@/lib/strava");
+  const { accessToken } = await resolveStravaAccessToken(user);
+  const segmentEfforts = await fetchStravaActivityDetail(externalActivityId, accessToken);
+
+  if (!segmentEfforts.length) {
+    return { fetched: true, segments: 0, efforts: 0 };
+  }
+
+  let segmentCount = 0;
+  let effortCount = 0;
+
+  for (const effort of segmentEfforts) {
+    const seg = effort.segment;
+    const segRecord = await upsertSegment({
+      stravaSegmentId: seg.id,
+      name: seg.name,
+      distance: seg.distance,
+      averageGrade: seg.average_grade,
+      maximumGrade: seg.maximum_grade,
+      elevationHigh: seg.elevation_high,
+      elevationLow: seg.elevation_low,
+      climbCategory: seg.climb_category,
+      city: seg.city,
+      state: seg.state,
+      country: seg.country,
+      startLat: seg.start_latlng?.[0],
+      startLng: seg.start_latlng?.[1],
+      endLat: seg.end_latlng?.[0],
+      endLng: seg.end_latlng?.[1],
+      totalElevationGain: seg.total_elevation_gain,
+    });
+    segmentCount++;
+
+    await upsertSegmentEffort({
+      segmentId: segRecord.id,
+      activityId,
+      userId: user.id,
+      stravaEffortId: BigInt(effort.id),
+      elapsedTime: effort.elapsed_time,
+      movingTime: effort.moving_time,
+      startDate: effort.start_date,
+      averageWatts: effort.average_watts ? Math.round(effort.average_watts) : undefined,
+      averageHr: effort.average_heartrate,
+      maxHr: effort.max_heartrate ? Math.round(effort.max_heartrate) : undefined,
+      prRank: effort.pr_rank ?? undefined,
+      komRank: effort.kom_rank ?? undefined,
+      achievements: effort.achievements,
+      deviceWatts: effort.device_watts,
+    });
+    effortCount++;
+  }
+
+  return { fetched: true, segments: segmentCount, efforts: effortCount };
 }

@@ -81,7 +81,7 @@ export interface SyncJob {
   id: string;
   userId?: string;
   source: "intervals.icu" | "strava";
-  jobType: "sync" | "delete" | "stream_backfill";
+  jobType: "sync" | "delete" | "stream_backfill" | "segment_fetch";
   status: "pending" | "processing" | "done" | "failed";
   reason?: string;
   externalRef?: string;
@@ -229,4 +229,46 @@ export interface Database {
   fuelLogs: FuelLog[];
   aiReports: AiReport[];
   aiChatMessages?: AiChatMessage[];
+}
+
+export interface Segment {
+  id: string;
+  stravaSegmentId: number;
+  name: string;
+  distance: number;
+  averageGrade: number;
+  maximumGrade?: number;
+  elevationHigh?: number;
+  elevationLow?: number;
+  climbCategory: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
+  totalElevationGain?: number;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SegmentEffort {
+  id: string;
+  segmentId: string;
+  activityId: string;
+  userId: string;
+  stravaEffortId: bigint;
+  elapsedTime: number;
+  movingTime: number;
+  startDate: string;
+  averageWatts?: number;
+  averageHr?: number;
+  maxHr?: number;
+  prRank?: number;
+  komRank?: number;
+  achievements?: unknown[];
+  deviceWatts?: boolean;
+  createdAt: string;
 }

@@ -39,6 +39,9 @@ export async function processPendingSyncJobs(limit = 10) {
         detail = await handleStravaStreamBackfillJob(user, job);
       } else if (job.source === "intervals.icu" && job.jobType === "stream_backfill") {
         detail = await handleIntervalsStreamBackfillJob(user, job);
+      } else if (job.source === "strava" && job.jobType === "segment_fetch") {
+        const { handleStravaSegmentFetchJob } = await import("@/lib/strava-sync");
+        detail = await handleStravaSegmentFetchJob(user, job);
       } else if (job.source === "strava" && job.jobType === "delete") {
         detail = await handleStravaDeleteJob(user, job);
       } else if (job.source === "strava") {
