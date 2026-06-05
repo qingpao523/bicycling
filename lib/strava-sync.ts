@@ -108,6 +108,44 @@ export async function runStravaSync(input: {
 
   await upsertActivities(deduped.accepted);
 
+  // v2: merged 覆盖空壳 — incoming 更丰富时用合并后的数据 update 到已有 activity
+  if (deduped.merged.length > 0) {
+    const { prisma } = await import("@/lib/prisma");
+    for (const m of deduped.merged) {
+      await prisma.activity.update({
+        where: { id: m.matchedActivityId },
+        data: {
+          name: m.activity.name,
+          distanceKm: m.activity.distanceKm,
+          movingTimeMin: m.activity.movingTimeMin,
+          elevationM: m.activity.elevationM,
+          avgSpeedKmh: m.activity.avgSpeedKmh,
+          avgHr: m.activity.avgHr,
+          avgPower: m.activity.avgPower,
+          np: m.activity.np,
+          ifValue: m.activity.ifValue,
+          tss: m.activity.tss,
+          temperatureC: m.activity.temperatureC,
+          recentCtl: m.activity.recentCtl,
+          recentAtl: m.activity.recentAtl,
+          recentForm: m.activity.recentForm,
+          rawSummaryJson: JSON.stringify(m.activity.rawSummaryJson ?? null),
+          rawStreamsJson: JSON.stringify(m.activity.rawStreamsJson ?? null),
+          updatedAt: new Date(),
+        },
+      });
+      // merged 也算 alias
+      await saveActivityAlias({
+        userId: m.activity.userId,
+        activityId: m.matchedActivityId,
+        source: input.user.id === m.activity.userId ? "strava" : m.activity.source,
+        externalActivityId: m.activity.externalActivityId ?? "",
+        startTime: m.activity.startTime,
+        rawSummaryJson: m.activity.rawSummaryJson,
+      });
+    }
+  }
+
   // 自动入队 streams backfill (仅 cycling 类活动,跳过 trainer/虚拟 + <10min 短活动)
   const SHOULD_BACKFILL = (act: (typeof deduped.accepted)[number]) => {
     const raw = act.rawSummaryJson as Record<string, unknown> | undefined;
@@ -153,6 +191,7 @@ export async function runStravaSync(input: {
     total: activities.length,
     inserted: deduped.accepted.length,
     skipped: deduped.skipped.length,
+    merged: deduped.merged.length,
     streamBackfillEnqueued: backfillBatch.length,
   };
 }

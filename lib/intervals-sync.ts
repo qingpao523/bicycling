@@ -83,6 +83,43 @@ export async function runIntervalsSync(input: {
   });
   await upsertActivities(deduped.accepted);
 
+  // v2: merged 覆盖空壳
+  if (deduped.merged.length > 0) {
+    const { prisma } = await import("@/lib/prisma");
+    for (const m of deduped.merged) {
+      await prisma.activity.update({
+        where: { id: m.matchedActivityId },
+        data: {
+          name: m.activity.name,
+          distanceKm: m.activity.distanceKm,
+          movingTimeMin: m.activity.movingTimeMin,
+          elevationM: m.activity.elevationM,
+          avgSpeedKmh: m.activity.avgSpeedKmh,
+          avgHr: m.activity.avgHr,
+          avgPower: m.activity.avgPower,
+          np: m.activity.np,
+          ifValue: m.activity.ifValue,
+          tss: m.activity.tss,
+          temperatureC: m.activity.temperatureC,
+          recentCtl: m.activity.recentCtl,
+          recentAtl: m.activity.recentAtl,
+          recentForm: m.activity.recentForm,
+          rawSummaryJson: JSON.stringify(m.activity.rawSummaryJson ?? null),
+          rawStreamsJson: JSON.stringify(m.activity.rawStreamsJson ?? null),
+          updatedAt: new Date(),
+        },
+      });
+      await saveActivityAlias({
+        userId: m.activity.userId,
+        activityId: m.matchedActivityId,
+        source: m.activity.source,
+        externalActivityId: m.activity.externalActivityId ?? "",
+        startTime: m.activity.startTime,
+        rawSummaryJson: m.activity.rawSummaryJson,
+      });
+    }
+  }
+
   // 自动入队 streams backfill (仅 cycling 类活动,跳过 trainer/虚拟 + <10min 短活动)
   // 注意: intervals 同步已对最近 20 条预取 streams,handler 会跳过已有 streams 的活动
   const SHOULD_BACKFILL = (act: (typeof deduped.accepted)[number]) => {
@@ -128,6 +165,7 @@ export async function runIntervalsSync(input: {
     total: activities.length,
     inserted: deduped.accepted.length,
     skipped: deduped.skipped.length,
+    merged: deduped.merged.length,
     streamBackfillEnqueued: backfillBatch.length,
   };
 }
