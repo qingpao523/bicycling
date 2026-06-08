@@ -3705,6 +3705,38 @@ pre {
   border-radius: 2px;
   display: inline-block;
 }
+.route-segments-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.route-segment-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+.segment-index {
+  font-weight: 600;
+  border-left: 3px solid var(--border);
+  padding-left: 6px;
+  min-width: 36px;
+}
+.segment-info {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.segment-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
 
 /* Rider Card */
 .rider-card {

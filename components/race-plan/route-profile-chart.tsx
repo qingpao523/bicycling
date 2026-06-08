@@ -83,6 +83,24 @@ export function RouteProfileChart({ route }: { route: RouteProfile }) {
           </span>
         ))}
       </div>
+      <div className="route-segments-list">
+        {route.segments.map((seg, i) => (
+          <div key={i} className="route-segment-item">
+            <span className="segment-index" style={{ borderLeftColor: COLORS[seg.category] }}>
+              段{i + 1}
+            </span>
+            <span className="segment-info">
+              {seg.startKm.toFixed(1)}–{seg.endKm.toFixed(1)} km
+            </span>
+            <span className="segment-info">{seg.distanceKm.toFixed(1)} km</span>
+            <span className="segment-info">{seg.avgGradePct > 0 ? `${seg.avgGradePct}%` : "平"}</span>
+            <span className="segment-info">↑{seg.elevationGainM}m</span>
+            <span className="segment-tag" style={{ background: COLORS[seg.category] + "22", color: COLORS[seg.category] }}>
+              {LABELS[seg.category]}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
