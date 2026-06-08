@@ -92,6 +92,7 @@ export async function createUser(input: {
     email: input.email.toLowerCase(),
     passwordHash: hashPassword(input.password),
     role: input.role ?? "user",
+    onboardingStatus: "pending",
     createdAt: now,
     updatedAt: now,
   };

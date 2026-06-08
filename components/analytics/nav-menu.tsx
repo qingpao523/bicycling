@@ -74,6 +74,7 @@ export function AnalyticsNavMenu() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                prefetch={false}
                 className={`analytics-nav-item ${isActive(item.href) ? "analytics-nav-item--active" : ""}`}
                 onClick={() => setMobileOpen(false)}
               >

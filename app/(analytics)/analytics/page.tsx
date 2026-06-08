@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { loadAnalyticsData } from "@/lib/analytics-data";
 import { calculatePmc, getCurrentPmc, getPmcOneWeekAgo, detectTrainingPhase } from "@/lib/engine/pmc";
 import { calculateRecoveryScores } from "@/lib/engine/recovery-engine";
-import { PmcChart } from "@/components/analytics/pmc-chart";
+import { LazyPmcChart } from "@/components/analytics/lazy-charts";
 
 export default async function AnalyticsHomePage() {
   const user = await requireUser();
@@ -159,7 +159,7 @@ export default async function AnalyticsHomePage() {
               </div>
             </div>
             {pmcData.length ? (
-              <PmcChart data={pmcData} />
+              <LazyPmcChart data={pmcData} />
             ) : (
               <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
                 <p>暂无 PMC 数据 — 同步活动后自动生成</p>

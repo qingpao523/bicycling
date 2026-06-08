@@ -1,10 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import { Bike, CalendarClock, LockKeyhole, Route, Settings, Shield } from "lucide-react";
 
 import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
+import { AssistantBubble } from "@/components/assistant/assistant-bubble";
+import { AssistantPanel } from "@/components/assistant/assistant-panel";
+import { BottomNav } from "@/components/layout/bottom-nav";
 
 // next/font 在 build 时下载并自托管字体, 消除运行时 fonts.googleapis.com 阻塞请求
 const ibmPlex = IBM_Plex_Sans({
@@ -26,16 +29,25 @@ export const metadata: Metadata = {
   description: "真实可配置的骑行补给、恢复与 AI 分析系统",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { config, user, ready } = await getLayoutContext();
 
+  const showOnboarding = ready && user && user.onboardingStatus !== "completed";
+  const showBubble = ready && user && user.onboardingStatus === "completed";
+
   return (
     <html lang="zh-CN" className={`${ibmPlex.variable} ${spaceGrotesk.variable}`}>
       <body>
         <div className="shell">
-          <header className="topbar">
+          <header className="topbar desktop-only">
             <div className="brand">
               <div className="brand-badge">
                 <Bike size={22} />
@@ -53,15 +65,15 @@ export default async function RootLayout({
                     <CalendarClock size={16} /> 训练历史
                   </Link>
                   {config.featureRidePlans ? (
-                    <Link href="/ride-plans/new">
+                    <Link href="/ride-plans/new" prefetch={false}>
                       <Route size={16} /> 骑前计划
                     </Link>
                   ) : null}
-                  <Link href="/settings">
+                  <Link href="/settings" prefetch={false}>
                     <Settings size={16} /> 设置
                   </Link>
                   {user.role === "admin" ? (
-                    <Link href="/admin">
+                    <Link href="/admin" prefetch={false}>
                       <Shield size={16} /> 管理端
                     </Link>
                   ) : null}
@@ -89,6 +101,11 @@ export default async function RootLayout({
           </header>
           {children}
         </div>
+        {showOnboarding && (
+          <AssistantPanel mode="fullscreen" scope="onboarding" />
+        )}
+        {showBubble && <AssistantBubble />}
+        {showBubble && <BottomNav isAdmin={user.role === "admin"} />}
       </body>
     </html>
   );

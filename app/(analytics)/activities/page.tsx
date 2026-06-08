@@ -394,7 +394,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
       <ActivitiesPeriodCompare rows={monthCompareRows} />
 
       {/* §C 结构 (2 列) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="activities-structure-grid">
         <ActivitiesTypeDistribution data={typeDistribution} />
         <ActivitiesPowerZones data={powerZoneDistribution} />
       </div>

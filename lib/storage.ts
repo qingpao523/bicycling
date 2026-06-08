@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
+import { revalidateTag } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -112,6 +113,15 @@ function toUser(record: {
   stravaRawAthleteJson: string | null;
   stravaPersonalClientId: string | null;
   stravaPersonalClientSecretEncrypted: string | null;
+  userType: string;
+  onboardingStatus: string;
+  onboardingStepJson: string | null;
+  timezone: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  heightCm: number | null;
+  primaryDevice: string | null;
+  preferencesJson: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): User {
@@ -146,6 +156,15 @@ function toUser(record: {
     stravaRawAthleteJson: parseJson<Record<string, unknown>>(record.stravaRawAthleteJson, {}),
     stravaPersonalClientId: record.stravaPersonalClientId ?? undefined,
     stravaPersonalClientSecretEncrypted: record.stravaPersonalClientSecretEncrypted ?? undefined,
+    userType: record.userType ?? undefined,
+    onboardingStatus: record.onboardingStatus ?? undefined,
+    onboardingStepJson: record.onboardingStepJson ?? undefined,
+    timezone: record.timezone ?? undefined,
+    dateOfBirth: record.dateOfBirth ?? undefined,
+    gender: record.gender ?? undefined,
+    heightCm: record.heightCm ?? undefined,
+    primaryDevice: record.primaryDevice ?? undefined,
+    preferencesJson: record.preferencesJson ?? undefined,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
@@ -798,6 +817,15 @@ export async function saveUser(user: User) {
       stravaRawAthleteJson: stringifyJson(user.stravaRawAthleteJson),
       stravaPersonalClientId: user.stravaPersonalClientId,
       stravaPersonalClientSecretEncrypted: user.stravaPersonalClientSecretEncrypted,
+      userType: user.userType,
+      onboardingStatus: user.onboardingStatus,
+      onboardingStepJson: user.onboardingStepJson,
+      timezone: user.timezone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      heightCm: user.heightCm,
+      primaryDevice: user.primaryDevice,
+      preferencesJson: user.preferencesJson,
       updatedAt: new Date(user.updatedAt),
     },
     create: {
@@ -831,6 +859,15 @@ export async function saveUser(user: User) {
       stravaRawAthleteJson: stringifyJson(user.stravaRawAthleteJson),
       stravaPersonalClientId: user.stravaPersonalClientId,
       stravaPersonalClientSecretEncrypted: user.stravaPersonalClientSecretEncrypted,
+      userType: user.userType,
+      onboardingStatus: user.onboardingStatus,
+      onboardingStepJson: user.onboardingStepJson,
+      timezone: user.timezone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      heightCm: user.heightCm,
+      primaryDevice: user.primaryDevice,
+      preferencesJson: user.preferencesJson,
       createdAt: new Date(user.createdAt),
       updatedAt: new Date(user.updatedAt),
     },
@@ -1163,6 +1200,7 @@ export async function upsertActivities(activities: Activity[]) {
       rawSummaryJson: activity.rawSummaryJson,
     });
   }
+  revalidateTag("activities");
 }
 
 export async function saveAiReport(report: AiReport) {

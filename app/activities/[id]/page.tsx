@@ -282,7 +282,7 @@ export default async function ActivityDetailPage({
     : null;
 
   return (
-    <main className="analytics-page" style={{ display: "grid", gap: 20, padding: "0 24px 40px", maxWidth: 1200, margin: "0 auto" }}>
+    <main className="activity-detail-page">
       {/* §A Hero */}
       <ActivityHero
         activity={{

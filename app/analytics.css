@@ -240,6 +240,14 @@
 
   .analytics-nav-mobile-toggle {
     display: flex;
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 10px 16px;
+    border-radius: 12px;
+    gap: 6px;
+    margin: 0 0 12px auto;
+    font-size: 0.82rem;
   }
 
   .analytics-nav-overlay {
@@ -247,10 +255,14 @@
   }
 
   .analytics-content {
-    padding: 0 12px 40px;
+    padding: 0 12px calc(56px + env(safe-area-inset-bottom) + 24px) 12px;
   }
 
   .analytics-chart-container {
     height: 260px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
   }
 }

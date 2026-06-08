@@ -40,6 +40,15 @@ export interface User {
   stravaRawAthleteJson?: Record<string, unknown>;
   stravaPersonalClientId?: string;
   stravaPersonalClientSecretEncrypted?: string;
+  userType?: string;
+  onboardingStatus?: string;
+  onboardingStepJson?: string;
+  timezone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  heightCm?: number;
+  primaryDevice?: string;
+  preferencesJson?: string;
   createdAt: string;
   updatedAt: string;
 }
