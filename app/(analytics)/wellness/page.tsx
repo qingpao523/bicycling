@@ -1,0 +1,87 @@
+import { requireUser } from "@/lib/auth";
+import { listDailyWellness } from "@/lib/storage";
+import { computeReadiness } from "@/lib/engine/readiness-engine";
+import { prisma } from "@/lib/prisma";
+import { ReadinessCard } from "@/components/wellness/readiness-card";
+import { WellnessCharts } from "@/components/wellness/wellness-charts";
+import { StatusTagInput } from "@/components/wellness/status-tag-input";
+
+export const metadata = { title: "个人状态" };
+
+export default async function WellnessPage() {
+  const user = await requireUser();
+
+  const [recent7, baseline30] = await Promise.all([
+    listDailyWellness(user.id, 7),
+    listDailyWellness(user.id, 30),
+  ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayEntry = recent7.find((d) => d.date === today) ?? {
+    id: "",
+    userId: user.id,
+    date: today,
+    restingHr: null,
+    hrv: null,
+    sleepSecs: null,
+    sleepScore: null,
+    weight: null,
+    spO2: null,
+    steps: null,
+    statusTag: null,
+    note: null,
+    readinessScore: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Get TSB from most recent activity
+  const latestActivity = await prisma.activity.findFirst({
+    where: { userId: user.id },
+    orderBy: { startTime: "desc" },
+    select: { recentForm: true },
+  });
+  const tsb = latestActivity?.recentForm ?? undefined;
+
+  const readiness = computeReadiness(todayEntry, recent7, baseline30, tsb);
+
+  const chartData = baseline30
+    .slice()
+    .reverse()
+    .map((d) => ({
+      date: d.date,
+      hrv: d.hrv,
+      restingHr: d.restingHr,
+      sleepHours: d.sleepSecs != null ? Math.round((d.sleepSecs / 3600) * 10) / 10 : null,
+      sleepScore: d.sleepScore,
+    }));
+
+  return (
+    <div className="wellness-page">
+      <h1 className="wellness-page-title">个人状态</h1>
+
+      <div className="wellness-top-section">
+        <ReadinessCard
+          score={readiness.score}
+          label={readiness.label}
+          color={readiness.color}
+          factors={readiness.factors}
+        />
+        <StatusTagInput currentTag={todayEntry.statusTag} date={today} />
+      </div>
+
+      {readiness.suggestions.length > 0 && (
+        <div className="wellness-suggestions">
+          <h3>建议</h3>
+          <ul>
+            {readiness.suggestions.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <WellnessCharts data={chartData} />
+    </div>
+  );
+}

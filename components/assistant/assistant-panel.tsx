@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, X, Send, RotateCcw } from "lucide-react";
+import { MessageCircle, X, Send, RotateCcw, Zap, RefreshCw, BarChart3, HelpCircle } from "lucide-react";
 import { useAssistant } from "./use-assistant";
 import { AssistantMessage } from "./assistant-message";
 import type { AssistantScope, AssistantAction } from "@/lib/assistant/protocol";
@@ -92,6 +92,26 @@ export function AssistantPanel({ mode, scope, scopeRef, onClose }: AssistantPane
       </div>
 
       <div className="assistant-panel-messages" ref={scrollRef}>
+        {messages.length === 0 && scope !== "onboarding" && (
+          <div className="assistant-welcome">
+            <p className="assistant-welcome-text">有什么可以帮你的？</p>
+            <div className="assistant-quick-actions">
+              <button type="button" className="assistant-quick-action" onClick={() => sendMessage("同步最新数据")}>
+                <RefreshCw size={16} /> 同步数据
+              </button>
+              <button type="button" className="assistant-quick-action" onClick={() => sendMessage("查看训练分析")}>
+                <BarChart3 size={16} /> 训练分析
+              </button>
+              <button type="button" className="assistant-quick-action" onClick={() => sendMessage("今天怎么练？")}>
+                <Zap size={16} /> 今天怎么练
+              </button>
+              <button type="button" className="assistant-quick-action" onClick={() => sendMessage("你能做什么？")}>
+                <HelpCircle size={16} /> 功能介绍
+              </button>
+            </div>
+          </div>
+        )}
+
         {messages.map((msg, i) => (
           <AssistantMessage
             key={msg.id}

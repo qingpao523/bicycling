@@ -1,7 +1,7 @@
 import type { AssistantChunk, AssistantAction } from "./protocol";
 
 interface Intent {
-  kind: "navigate" | "sync" | "query" | "advice" | "chat" | "help";
+  kind: "navigate" | "sync" | "query" | "advice" | "chat" | "help" | "status" | "wellness" | "race_plan";
   target?: string;
 }
 
@@ -76,12 +76,29 @@ const ADVICE_PATTERNS: { pattern: RegExp; response: string }[] = [
   },
 ];
 
+const STATUS_PATTERNS: { pattern: RegExp; kind: "status" }[] = [
+  { pattern: /连接.*状态|配置.*情况|缺什么|还差什么/i, kind: "status" },
+];
+
+const WELLNESS_PATTERNS: { pattern: RegExp; kind: "wellness" }[] = [
+  { pattern: /今天.*(状态|精力|累|恢复)|状态.*(怎么样|如何|好不好)/i, kind: "wellness" },
+  { pattern: /readiness|准备.*度|恢复.*怎么样/i, kind: "wellness" },
+  { pattern: /睡眠|睡.*不好|失眠|褪黑素/i, kind: "wellness" },
+  { pattern: /补剂|维生素|蛋白粉|肌酸|恢复.*建议/i, kind: "wellness" },
+  { pattern: /hrv|心率变异|静息心率.*趋势/i, kind: "wellness" },
+];
+
+const RACE_PLAN_PATTERNS: { pattern: RegExp; kind: "race_plan" }[] = [
+  { pattern: /辣堡|战术|比赛.*(计划|策略|方案)|拉爆/i, kind: "race_plan" },
+  { pattern: /race.?plan|tactics|对手.*分析/i, kind: "race_plan" },
+];
+
 const HELP_PATTERNS = [
   /帮助|help|你能做什么|功能|怎么用/i,
   /你是谁|介绍/i,
 ];
 
-function classifyIntent(message: string): Intent {
+export function classifyIntent(message: string): Intent {
   const msg = message.trim();
 
   for (const rule of NAV_RULES) {
@@ -108,6 +125,24 @@ function classifyIntent(message: string): Intent {
     }
   }
 
+  for (const w of WELLNESS_PATTERNS) {
+    if (w.pattern.test(msg)) {
+      return { kind: "wellness" };
+    }
+  }
+
+  for (const r of RACE_PLAN_PATTERNS) {
+    if (r.pattern.test(msg)) {
+      return { kind: "race_plan" };
+    }
+  }
+
+  for (const s of STATUS_PATTERNS) {
+    if (s.pattern.test(msg)) {
+      return { kind: "status" };
+    }
+  }
+
   if (HELP_PATTERNS.some((p) => p.test(msg))) {
     return { kind: "help" };
   }
@@ -115,7 +150,23 @@ function classifyIntent(message: string): Intent {
   return { kind: "chat" };
 }
 
-export function processGlobalMessage(userMessage: string): AssistantChunk[] {
+export interface WellnessSnapshot {
+  score: number;
+  label: string;
+  suggestions: string[];
+  sleepHours: number | null;
+  hrv: number | null;
+  restingHr: number | null;
+}
+
+export interface RulesContext {
+  missingFields?: string[];
+  activityCount?: number;
+  recentTrainingSummary?: string | null;
+  wellness?: WellnessSnapshot | null;
+}
+
+export function processGlobalMessage(userMessage: string, ctx?: RulesContext): AssistantChunk[] {
   const intent = classifyIntent(userMessage);
   const chunks: AssistantChunk[] = [];
 
@@ -173,6 +224,59 @@ export function processGlobalMessage(userMessage: string): AssistantChunk[] {
           ],
         },
       });
+      break;
+    }
+
+    case "status": {
+      const missing = ctx?.missingFields ?? [];
+      const count = ctx?.activityCount ?? 0;
+      const summary = ctx?.recentTrainingSummary;
+
+      const lines: string[] = [];
+      lines.push(`**系统状态**\n`);
+      lines.push(`- 活动数据：${count} 条`);
+      if (summary) lines.push(`- 最近训练：${summary}`);
+      if (missing.length > 0) {
+        lines.push(`- ⚠️ 未配置：${missing.join("、")}`);
+        lines.push(`\n建议前往设置页完善配置。`);
+      } else {
+        lines.push(`- ✅ 核心配置完整`);
+      }
+      chunks.push({ type: "delta", content: lines.join("\n") });
+      if (missing.length > 0) {
+        chunks.push({ type: "action", action: { kind: "navigate", path: "/settings" } });
+      }
+      break;
+    }
+
+    case "wellness": {
+      const w = ctx?.wellness;
+      if (!w) {
+        chunks.push({ type: "delta", content: "还没有健康数据，请先同步 intervals.icu 数据。同步后可以在**状态**页面查看。" });
+        chunks.push({ type: "action", action: { kind: "navigate", path: "/wellness" } });
+      } else {
+        const lines: string[] = [];
+        lines.push(`**今日状态：${w.label}（${w.score}/100）**\n`);
+        if (w.sleepHours != null) lines.push(`- 睡眠：${w.sleepHours.toFixed(1)} 小时`);
+        if (w.hrv != null) lines.push(`- HRV：${w.hrv} ms`);
+        if (w.restingHr != null) lines.push(`- 静息心率：${w.restingHr} bpm`);
+        if (w.suggestions.length > 0) {
+          lines.push("");
+          lines.push("**建议：**");
+          w.suggestions.forEach((s) => lines.push(`- ${s}`));
+        }
+        chunks.push({ type: "delta", content: lines.join("\n") });
+        chunks.push({ type: "action", action: { kind: "navigate", path: "/wellness" } });
+      }
+      break;
+    }
+
+    case "race_plan": {
+      chunks.push({
+        type: "delta",
+        content: "好的，带你去**辣堡战术**页面。你可以上传 GPX 路线、录入队友和对手数据，AI 会帮你制定拉爆战术。",
+      });
+      chunks.push({ type: "action", action: { kind: "navigate", path: "/race-plan" } });
       break;
     }
 

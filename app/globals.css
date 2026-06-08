@@ -2929,6 +2929,25 @@ pre {
   transform: scale(1.08);
   box-shadow: 0 12px 32px rgba(31, 87, 214, 0.4);
 }
+.assistant-bubble--pulse {
+  animation: bubble-pulse 2s infinite;
+}
+@keyframes bubble-pulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(31, 87, 214, 0.3); }
+  50% { box-shadow: 0 8px 32px rgba(31, 87, 214, 0.6), 0 0 0 8px rgba(31, 87, 214, 0.1); }
+}
+.assistant-bubble-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 0.68rem;
+  background: var(--cta, #f59e0b);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  line-height: 1;
+}
 
 .assistant-panel-floating {
   position: fixed;
@@ -3136,6 +3155,48 @@ pre {
   cursor: not-allowed;
 }
 
+.assistant-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px 24px;
+  text-align: center;
+  flex: 1;
+}
+.assistant-welcome-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 20px;
+}
+.assistant-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+.assistant-quick-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.assistant-quick-action:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
 .assistant-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -3297,4 +3358,538 @@ pre {
     padding: 10px 8px;
     font-size: 0.82rem;
   }
+}
+
+/* === Wellness === */
+.wellness-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 16px 100px;
+}
+.wellness-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.wellness-top-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.readiness-card {
+  background: var(--surface-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  flex: 1;
+  min-width: 220px;
+}
+.readiness-score-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 16px;
+}
+.readiness-svg {
+  width: 100%;
+  height: 100%;
+}
+.readiness-score-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.readiness-number {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.readiness-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.readiness-factors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.readiness-factor-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+.readiness-factor-name {
+  color: var(--muted);
+}
+.readiness-factor-score {
+  font-weight: 600;
+}
+.readiness-factor-bar {
+  height: 4px;
+  background: var(--bg-deep);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 3px 0;
+}
+.readiness-factor-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.readiness-factor-detail {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.status-tag-input {
+  background: var(--surface-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  min-width: 180px;
+}
+.status-tag-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.status-tag-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.status-tag-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+.status-tag-btn:hover {
+  border-color: var(--accent);
+}
+.status-tag-btn--active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.status-tag-note {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.wellness-suggestions {
+  background: var(--surface-strong);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 20px;
+}
+.wellness-suggestions h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.wellness-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.wellness-suggestions li {
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.wellness-suggestions li:last-child {
+  border-bottom: none;
+}
+.wellness-suggestions li::before {
+  content: "💡 ";
+}
+
+.wellness-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.wellness-chart-card {
+  background: var(--surface-strong);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-soft);
+}
+.wellness-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.wellness-chart-card h4 {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0;
+}
+.wellness-chart-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.wellness-chart-svg {
+  width: 100%;
+  height: 50px;
+}
+.wellness-chart-empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* ===== Race Plan ===== */
+.race-plan-page {
+  padding: 16px;
+  max-width: 800px;
+}
+.race-plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.race-plan-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+.race-plan-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+}
+.race-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.race-plan-card {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.race-plan-card:hover {
+  border-color: var(--accent);
+}
+.race-plan-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.race-plan-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.status-draft { background: var(--bg-secondary); color: var(--text-secondary); }
+.status-generated { background: #dcfce7; color: #166534; }
+.race-plan-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.race-plan-detail-header {
+  margin-bottom: 16px;
+}
+.race-plan-detail-header h2 {
+  margin: 8px 0 4px;
+}
+.back-link {
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.race-date {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.weather-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.plan-detail-section {
+  margin-bottom: 24px;
+}
+.plan-detail-section h3 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+.riders-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Route Profile Chart */
+.route-profile-chart {
+  margin: 12px 0;
+}
+.route-profile-header {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.route-profile-svg {
+  width: 100%;
+  height: auto;
+}
+.route-profile-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 0.75rem;
+  margin-top: 6px;
+  color: var(--text-secondary);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* Rider Card */
+.rider-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 200px;
+  flex: 1;
+}
+.rider-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.rider-role-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+}
+.rider-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.rider-remove-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  padding: 0 4px;
+}
+.rider-card-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.rider-card-traits {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  display: flex;
+  gap: 10px;
+}
+
+/* Rider Form */
+.rider-form {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.rider-form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.rider-form-row input,
+.rider-form-row select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.btn-add-rider {
+  padding: 6px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Plan Builder */
+.plan-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.plan-builder-section h3 {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+.plan-builder-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.plan-name-input {
+  flex: 2;
+}
+.plan-date-input {
+  flex: 1;
+}
+.plan-builder-section input:not([type="file"]) {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.gpx-upload-label {
+  display: block;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.gpx-upload-label:hover {
+  border-color: var(--accent);
+}
+.gpx-file-input {
+  display: none;
+}
+.gpx-upload-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.btn-generate {
+  padding: 12px 24px;
+  font-size: 1rem;
+  border-radius: 10px;
+  width: 100%;
+}
+.form-error {
+  color: var(--danger, #ef4444);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* Tactics View */
+.tactics-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.tactics-overview p {
+  line-height: 1.6;
+}
+.tactics-segment-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.tactics-segment-header {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tactics-segment-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.tactics-moment-card {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.moment-km {
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  min-width: 60px;
+  color: var(--accent);
+}
+.moment-details p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.moment-power {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+.tactics-pending {
+  text-align: center;
+  padding: 32px 16px;
+}
+.tactics-pending p {
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+}
+.tactics-risks ul {
+  list-style: disc;
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }

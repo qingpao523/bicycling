@@ -1,6 +1,7 @@
 import { dedupeIncomingActivities } from "@/lib/activity-dedupe";
 import { decryptSecret } from "@/lib/crypto";
 import { fetchIntervalsActivities, fetchIntervalsActivityStreams, fetchIntervalsProfile } from "@/lib/intervals";
+import { prisma } from "@/lib/prisma";
 import {
   enqueueSyncJob,
   getActivity,
@@ -16,6 +17,59 @@ import {
 import type { SyncJob, User } from "@/lib/types";
 
 const incrementalOverlapDays = 14;
+const wellnessSyncDays = 30;
+
+function asNumber(v: unknown): number | undefined {
+  if (typeof v === "number" && !isNaN(v)) return v;
+  return undefined;
+}
+
+async function syncWellnessData(userId: string, rawWellness: unknown) {
+  if (!Array.isArray(rawWellness) || rawWellness.length === 0) return 0;
+
+  const cutoff = new Date(Date.now() - wellnessSyncDays * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const entries = rawWellness.filter(
+    (e): e is Record<string, unknown> =>
+      !!e && typeof e === "object" && typeof (e as Record<string, unknown>).id === "string",
+  );
+
+  const recent = entries.filter((e) => (e.id as string) >= cutoff);
+  let synced = 0;
+
+  for (const entry of recent) {
+    const date = entry.id as string;
+    await prisma.dailyWellness.upsert({
+      where: { userId_date: { userId, date } },
+      update: {
+        restingHr: asNumber(entry.restingHR) ?? asNumber(entry.resting_hr) ?? undefined,
+        hrv: asNumber(entry.hrv) ?? asNumber(entry.rmssd) ?? undefined,
+        sleepSecs: asNumber(entry.sleepSecs) ?? asNumber(entry.sleep_secs) ?? undefined,
+        sleepScore: asNumber(entry.sleepScore) ?? asNumber(entry.sleep_score) ?? undefined,
+        weight: asNumber(entry.weight) ?? asNumber(entry.icu_weight) ?? undefined,
+        spO2: asNumber(entry.spO2) ?? asNumber(entry.spo2) ?? undefined,
+        steps: asNumber(entry.steps) ?? undefined,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        date,
+        restingHr: asNumber(entry.restingHR) ?? asNumber(entry.resting_hr) ?? undefined,
+        hrv: asNumber(entry.hrv) ?? asNumber(entry.rmssd) ?? undefined,
+        sleepSecs: asNumber(entry.sleepSecs) ?? asNumber(entry.sleep_secs) ?? undefined,
+        sleepScore: asNumber(entry.sleepScore) ?? asNumber(entry.sleep_score) ?? undefined,
+        weight: asNumber(entry.weight) ?? asNumber(entry.icu_weight) ?? undefined,
+        spO2: asNumber(entry.spO2) ?? asNumber(entry.spo2) ?? undefined,
+        steps: asNumber(entry.steps) ?? undefined,
+      },
+    });
+    synced++;
+  }
+
+  return synced;
+}
 
 function isoDateDaysBefore(value: string, days: number) {
   return new Date(new Date(value).getTime() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -82,6 +136,8 @@ export async function runIntervalsSync(input: {
     updatedAt: new Date().toISOString(),
   });
   await upsertActivities(deduped.accepted);
+
+  const wellnessSynced = await syncWellnessData(input.user.id, profile.rawWellness);
 
   // v2: merged 覆盖空壳
   if (deduped.merged.length > 0) {
@@ -198,6 +254,7 @@ export async function runIntervalsSync(input: {
     streamBackfillEnqueued: backfillBatch.length,
     segmentFetchEnqueued: segmentBatch.length,
     stravaReloaded,
+    wellnessSynced,
   };
 }
 

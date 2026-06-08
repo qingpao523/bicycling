@@ -6,7 +6,6 @@ import { Bike, CalendarClock, LockKeyhole, Route, Settings, Shield } from "lucid
 import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
 import { AssistantBubble } from "@/components/assistant/assistant-bubble";
-import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 // next/font 在 build 时下载并自托管字体, 消除运行时 fonts.googleapis.com 阻塞请求
@@ -101,10 +100,13 @@ export default async function RootLayout({
           </header>
           {children}
         </div>
-        {showOnboarding && (
-          <AssistantPanel mode="fullscreen" scope="onboarding" />
+        {ready && user && (
+          <AssistantBubble
+            autoOpen
+            scope={showOnboarding ? "onboarding" : "global"}
+            onboardingPending={!!showOnboarding}
+          />
         )}
-        {showBubble && <AssistantBubble />}
         {showBubble && <BottomNav isAdmin={user.role === "admin"} />}
       </body>
     </html>

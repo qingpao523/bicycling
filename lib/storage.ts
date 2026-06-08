@@ -1446,3 +1446,95 @@ export async function countActivitiesWithoutSegments(userId: string) {
   const withSegments = await countActivitiesWithSegments(userId);
   return Math.max(0, allStrava - withSegments);
 }
+
+export async function listDailyWellness(userId: string, days: number = 7) {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  return prisma.dailyWellness.findMany({
+    where: { userId, date: { gte: cutoff } },
+    orderBy: { date: "desc" },
+  });
+}
+
+// === Race Plan ===
+
+export async function createRacePlan(input: {
+  userId: string;
+  name: string;
+  routeJson: string;
+  gpxFileName?: string;
+  weatherNote?: string;
+  raceDate?: string;
+}) {
+  return prisma.racePlan.create({
+    data: {
+      userId: input.userId,
+      name: input.name,
+      routeJson: input.routeJson,
+      gpxFileName: input.gpxFileName,
+      weatherNote: input.weatherNote,
+      raceDate: input.raceDate,
+    },
+    include: { riders: true },
+  });
+}
+
+export async function getRacePlan(id: string) {
+  return prisma.racePlan.findUnique({
+    where: { id },
+    include: { riders: true },
+  });
+}
+
+export async function listRacePlans(userId: string) {
+  return prisma.racePlan.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: { riders: true },
+  });
+}
+
+export async function updateRacePlanTactics(id: string, tacticsJson: string) {
+  return prisma.racePlan.update({
+    where: { id },
+    data: { tacticsJson, status: "generated", updatedAt: new Date() },
+  });
+}
+
+export async function addRacePlanRider(input: {
+  racePlanId: string;
+  role: string;
+  name: string;
+  ftp?: number;
+  weightKg?: number;
+  wpKg5min?: number;
+  wpKg1min?: number;
+  strength?: string;
+  weakness?: string;
+  note?: string;
+}) {
+  return prisma.racePlanRider.create({ data: input });
+}
+
+export async function removeRacePlanRider(id: string) {
+  return prisma.racePlanRider.delete({ where: { id } });
+}
+
+export async function deleteRacePlan(id: string) {
+  return prisma.racePlan.delete({ where: { id } });
+}
+
+export async function upsertDailyWellnessTag(
+  userId: string,
+  date: string,
+  statusTag: string | null,
+  note?: string,
+) {
+  return prisma.dailyWellness.upsert({
+    where: { userId_date: { userId, date } },
+    update: { statusTag, note, updatedAt: new Date() },
+    create: { userId, date, statusTag, note },
+  });
+}

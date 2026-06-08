@@ -83,6 +83,8 @@ model User {
   aiReports                AiReport[]
   aiChatMessages           AiChatMessage[]
   conversations            AssistantConversation[]
+  dailyWellness            DailyWellness[]
+  racePlans                RacePlan[]
 }
 
 model Session {
@@ -363,4 +365,66 @@ model SegmentEffort {
   @@index([userId, prRank])
   @@index([activityId])
   @@index([segmentId, elapsedTime])
+}
+
+model DailyWellness {
+  id             String   @id @default(cuid())
+  userId         String
+  date           String
+
+  restingHr      Int?
+  hrv            Float?
+  sleepSecs      Int?
+  sleepScore     Int?
+  weight         Float?
+  spO2           Int?
+  steps          Int?
+
+  statusTag      String?
+  note           String?
+
+  readinessScore Int?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model RacePlan {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  routeJson     String
+  gpxFileName   String?
+  weatherNote   String?
+  raceDate      String?
+  status        String   @default("draft")
+  tacticsJson   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  riders        RacePlanRider[]
+
+  @@index([userId, createdAt])
+}
+
+model RacePlanRider {
+  id            String   @id @default(cuid())
+  racePlanId    String
+  role          String
+  name          String
+  ftp           Int?
+  weightKg      Float?
+  wpKg5min      Float?
+  wpKg1min      Float?
+  strength      String?
+  weakness      String?
+  note          String?
+  racePlan      RacePlan @relation(fields: [racePlanId], references: [id], onDelete: Cascade)
+
+  @@index([racePlanId])
 }

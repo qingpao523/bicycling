@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BarChart3, CalendarClock, Settings, Shield, MessageCircle } from "lucide-react";
+import { BarChart3, CalendarClock, Heart, Settings, Shield, MessageCircle } from "lucide-react";
 import { AssistantPanel } from "@/components/assistant/assistant-panel";
 
 interface BottomNavProps {
@@ -13,6 +13,7 @@ interface BottomNavProps {
 const TABS = [
   { href: "/analytics", icon: BarChart3, label: "首页", prefetch: true },
   { href: "/activities", icon: CalendarClock, label: "训练", prefetch: true },
+  { href: "/wellness", icon: Heart, label: "状态", prefetch: true },
   { href: "/settings", icon: Settings, label: "设置", prefetch: false },
 ] as const;
 

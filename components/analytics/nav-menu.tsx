@@ -13,6 +13,7 @@ import {
   Heart,
   Home,
   MessageSquare,
+  Swords,
   Target,
   Trophy,
   Zap,
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/analytics/prediction", label: "表现预测", icon: Brain },
   { href: "/analytics/leaderboard", label: "排行榜", icon: Trophy },
   { href: "/analytics/segments", label: "赛段", icon: Mountain },
+  { href: "/race-plan", label: "辣堡战术", icon: Swords },
   { href: "/analytics/tools", label: "数据工具", icon: Database },
   { href: "/analytics/feedback", label: "意见反馈", icon: MessageSquare },
 ];
