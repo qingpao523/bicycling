@@ -3560,6 +3560,27 @@ pre {
 }
 
 /* ===== Race Plan ===== */
+.btn-primary {
+  display: inline-block;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(31, 87, 214, 0.22);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(31, 87, 214, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
 .race-plan-page {
   padding: 16px;
   max-width: 800px;
@@ -3736,10 +3757,11 @@ pre {
 
 /* Rider Form */
 .rider-form {
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-top: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 14px;
+  margin-top: 10px;
+  background: var(--bg-secondary);
 }
 .rider-form-row {
   display: flex;
@@ -3757,13 +3779,20 @@ pre {
   color: var(--text);
 }
 .btn-add-rider {
-  padding: 6px 14px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 8px 16px;
+  background: var(--bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
   font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-add-rider:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* Plan Builder */
@@ -3775,6 +3804,9 @@ pre {
 .plan-builder-section h3 {
   margin-bottom: 10px;
   font-size: 0.95rem;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent);
+  display: inline-block;
 }
 .plan-builder-row {
   display: flex;
@@ -3798,15 +3830,17 @@ pre {
 }
 .gpx-upload-label {
   display: block;
-  border: 2px dashed var(--border);
-  border-radius: 10px;
-  padding: 24px;
+  border: 2px dashed rgba(31, 87, 214, 0.3);
+  border-radius: 12px;
+  padding: 28px 24px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s;
+  background: rgba(31, 87, 214, 0.03);
+  transition: border-color 0.15s, background 0.15s;
 }
 .gpx-upload-label:hover {
   border-color: var(--accent);
+  background: rgba(31, 87, 214, 0.06);
 }
 .gpx-file-input {
   display: none;
@@ -3816,10 +3850,18 @@ pre {
   color: var(--text-secondary);
 }
 .btn-generate {
-  padding: 12px 24px;
+  padding: 14px 24px;
   font-size: 1rem;
-  border-radius: 10px;
+  border-radius: 12px;
   width: 100%;
+  min-height: 48px;
+  letter-spacing: 0.02em;
+}
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 .form-error {
   color: var(--danger, #ef4444);
