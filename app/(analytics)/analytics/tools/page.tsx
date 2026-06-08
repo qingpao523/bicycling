@@ -1,11 +1,12 @@
 import { StreamBackfillPanel } from "@/components/analytics/stream-backfill-panel";
+import { SegmentBackfillTool } from "@/components/analytics/segment-backfill-tool";
 
 export default function AnalyticsToolsPage() {
   return (
     <div>
       <div className="analytics-page-header">
         <h1>数据工具</h1>
-        <p>补拉历史活动流数据，提升功率分析准确度</p>
+        <p>补拉历史活动流数据和赛段信息，提升分析准确度</p>
       </div>
 
       <div className="analytics-card">
@@ -20,6 +21,8 @@ export default function AnalyticsToolsPage() {
 
         <StreamBackfillPanel />
       </div>
+
+      <SegmentBackfillTool />
 
       <div className="analytics-card" style={{ background: "rgba(31,87,214,0.04)" }}>
         <h3 style={{ margin: "0 0 10px" }}>💡 使用建议</h3>
