@@ -13,6 +13,7 @@ import {
   Heart,
   Home,
   MessageSquare,
+  Route,
   Swords,
   Target,
   Trophy,
@@ -36,6 +37,7 @@ const navItems = [
   { href: "/analytics/leaderboard", label: "排行榜", icon: Trophy },
   { href: "/analytics/segments", label: "赛段", icon: Mountain },
   { href: "/race-plan", label: "辣堡战术", icon: Swords },
+  { href: "/ride-plans/new", label: "骑前计划", icon: Route },
   { href: "/analytics/tools", label: "数据工具", icon: Database },
   { href: "/analytics/feedback", label: "意见反馈", icon: MessageSquare },
 ];

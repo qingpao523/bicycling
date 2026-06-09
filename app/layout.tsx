@@ -7,7 +7,6 @@ import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
 import { CopilotProvider } from "@/components/assistant/copilot-provider";
 import { CopilotSidebarWrapper } from "@/components/assistant/copilot-sidebar-wrapper";
-import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { UserMenu } from "@/components/layout/user-menu";
 import { buildAssistantSystemPrompt } from "@/lib/assistant/system-prompt";
@@ -43,8 +42,8 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { config, user, ready } = await getLayoutContext();
 
-  const showOnboarding = ready && user && user.onboardingStatus !== "completed";
-  const showCopilot = ready && user && user.onboardingStatus === "completed";
+  const isNewUser = ready && user && user.onboardingStatus !== "completed";
+  const showCopilot = ready && !!user;
 
   return (
     <html lang="zh-CN" className={`${ibmPlex.variable} ${spaceGrotesk.variable}`}>
@@ -88,7 +87,6 @@ export default async function RootLayout({
             </header>
             {children}
           </div>
-          {showOnboarding && <OnboardingWizard initialName={user.name} />}
           {showCopilot && (
             <CopilotSidebarWrapper
               user={{
@@ -99,6 +97,7 @@ export default async function RootLayout({
                 maxHr: user.maxHr ?? undefined,
               }}
               systemPrompt={buildAssistantSystemPrompt(user)}
+              isNewUser={!!isNewUser}
             />
           )}
           {showCopilot && <BottomNav isAdmin={user.role === "admin"} />}
