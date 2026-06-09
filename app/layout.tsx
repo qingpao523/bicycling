@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
-import { Bike, CalendarClock } from "lucide-react";
+import { Bike } from "lucide-react";
 
 import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
@@ -63,10 +63,6 @@ export default async function RootLayout({
               <nav className="nav">
                 {ready && user ? (
                   <>
-                    <Link href="/analytics">功率训练</Link>
-                    <Link href="/activities">
-                      <CalendarClock size={16} /> 训练历史
-                    </Link>
                     <UserMenu name={user.name} role={user.role} />
                   </>
                 ) : ready ? (

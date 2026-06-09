@@ -33,6 +33,7 @@ const navItems = [
   { href: "/analytics/recovery", label: "状态恢复", icon: Heart },
   { href: "/analytics/data", label: "数据分析", icon: BarChart3 },
   { href: "/activities", label: "运动记录", icon: Gauge },
+  { href: "/wellness", label: "个人状态", icon: Heart },
   { href: "/analytics/prediction", label: "表现预测", icon: Brain },
   { href: "/analytics/leaderboard", label: "排行榜", icon: Trophy },
   { href: "/analytics/segments", label: "赛段", icon: Mountain },
