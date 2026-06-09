@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const body = await request.json().catch(() => ({}));
 
-    const limit = Math.max(parseInt(body.limit, 10) || 9999, 1);
+    const limit = Math.max(parseInt(body.limit, 10) || 9999, 1); // 不设上限，由引擎的 rateLimit 自动控速
     const source = body.source ?? "all";
     const onlyWithPower = !!body.onlyWithPower;
 

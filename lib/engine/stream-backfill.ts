@@ -46,6 +46,22 @@ function hasUsefulStream(streams: unknown): boolean {
 }
 
 /**
+ * Extract Strava numeric activity ID from an intervals.icu-sourced activity.
+ * intervals.icu uses "iXXXXXXXX" as ID where XXXXXXXX is the Strava activity ID.
+ */
+function extractStravaId(activity: { externalActivityId: string; rawSummaryJson: unknown }): string | null {
+  const raw = activity.rawSummaryJson as Record<string, unknown> | null;
+  const explicit = raw?.strava_id ?? raw?.stravaActivityId;
+  if (explicit) return String(explicit);
+
+  // intervals.icu ID format: "i" + Strava numeric ID
+  const extId = activity.externalActivityId;
+  if (/^i\d+$/.test(extId)) return extId.slice(1);
+
+  return null;
+}
+
+/**
  * Basic sleep for rate limiting
  */
 function sleep(ms: number): Promise<void> {
@@ -140,8 +156,9 @@ export async function backfillActivityStreams(options: BackfillOptions): Promise
   // Prepare API keys
   const intervalsApiKey = user.intervalsApiKeyEncrypted ? decryptSecret(user.intervalsApiKeyEncrypted) : null;
 
+  // 始终尝试获取 Strava token — intervals.icu 源活动也可能需要 Strava fallback
   let stravaTokenInfo: { accessToken: string; updated: boolean } | null = null;
-  if (needBackfill.some((a) => a.source === "strava")) {
+  if (user.stravaAccessTokenEncrypted) {
     stravaTokenInfo = await ensureStravaToken(user);
   }
 
@@ -177,21 +194,30 @@ export async function backfillActivityStreams(options: BackfillOptions): Promise
 
       if (activity.source === "intervals.icu") {
         if (!intervalsApiKey) {
+          progress.errors.push({ activityId: activity.id, name: activity.name, error: "未配置 intervals.icu API Key" });
           progress.skipped++;
           progress.processed++;
           continue;
         }
         streams = await fetchIntervalsActivityStreams(activity.externalActivityId, intervalsApiKey);
 
-        // intervals.icu API 对 Strava 来源活动返回空 streams → 自动 fallback:
-        // 如果用户配了 intervals.icu 邮箱+密码, 用 Web Session 下载 .fit 重传,
-        // 让 source 变 UPLOAD, 然后重拉 streams
+        // intervals.icu 对 Strava 来源活动返回空 streams → 尝试用 Strava token 直接拉
+        if (!hasUsefulStream(streams) && stravaTokenInfo) {
+          const stravaId = extractStravaId(activity);
+          if (stravaId) {
+            try {
+              streams = await fetchStravaActivityStreams(stravaId, stravaTokenInfo.accessToken);
+            } catch {
+              // Strava fallback 失败不阻塞
+            }
+          }
+        }
+
+        // 再试 web session fallback
         if (!hasUsefulStream(streams) && user.intervalsEmailEncrypted && user.intervalsPasswordEncrypted) {
           try {
             const { reloadStravaActivitiesViaWeb } = await import("@/lib/intervals-web");
-            // 只修复这一条 (用 activityId 对应的时间 ± 1 天做窗口)
             await reloadStravaActivitiesViaWeb(user, 3);
-            // 重传后等 2 秒让 intervals.icu 处理, 再重拉一次
             await sleep(2000);
             streams = await fetchIntervalsActivityStreams(activity.externalActivityId, intervalsApiKey);
           } catch {
@@ -200,6 +226,7 @@ export async function backfillActivityStreams(options: BackfillOptions): Promise
         }
       } else if (activity.source === "strava") {
         if (!stravaTokenInfo) {
+          progress.errors.push({ activityId: activity.id, name: activity.name, error: "Strava 认证失效" });
           progress.skipped++;
           progress.processed++;
           continue;
