@@ -7,6 +7,7 @@
 import { getAppConfig, listUsers, updateAppConfig } from "@/lib/storage";
 import { runIntervalsSync } from "@/lib/intervals-sync";
 import { runStravaSync } from "@/lib/strava-sync";
+import { processPendingSyncJobs } from "@/lib/system-sync";
 
 const CHECK_INTERVAL_MS = 60_000; // 每 60s 检查一次是否到了该巡检的时间
 let started = false;
@@ -70,8 +71,16 @@ async function tick() {
       }
     }
 
+    // 同步入队了 segment_fetch / stream_backfill jobs，现在消费它们
+    let jobsProcessed = 0;
+    for (let round = 0; round < 5; round++) {
+      const batch = await processPendingSyncJobs(12);
+      jobsProcessed += batch.length;
+      if (batch.length < 12) break;
+    }
+
     await updateAppConfig({
-      autoSyncLastStatus: `完成: ${synced} 成功, ${errors} 失败 (${users.length} 用户)`,
+      autoSyncLastStatus: `完成: ${synced} 成功, ${errors} 失败, ${jobsProcessed} 后台任务 (${users.length} 用户)`,
     });
   } catch {
     try {

@@ -223,20 +223,19 @@ export type IcuSegment = {
 };
 
 export async function fetchIntervalsActivitySegments(activityId: string, apiKey: string): Promise<IcuSegment[]> {
-  try {
-    const response = await fetch(`${baseUrl}/activity/${activityId}/segments`, {
-      headers: {
-        Authorization: basicAuthHeader(apiKey),
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
+  const response = await fetch(`${baseUrl}/activity/${activityId}/segments`, {
+    headers: {
+      Authorization: basicAuthHeader(apiKey),
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
 
-    if (!response.ok) return [];
-    return (await response.json()) as IcuSegment[];
-  } catch {
-    return [];
+  if (response.status === 404) return [];
+  if (!response.ok) {
+    throw new Error(`intervals.icu segments API ${response.status}: ${response.statusText}`);
   }
+  return (await response.json()) as IcuSegment[];
 }
 
 export async function fetchIntervalsActivityStreams(activityId: string, apiKey: string) {

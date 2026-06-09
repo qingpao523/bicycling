@@ -519,6 +519,7 @@ export async function enqueueSyncJob(input: {
           availableAt,
           claimedAt: null,
           processedAt: null,
+          attempts: 0,
           lastError: null,
           updatedAt: now,
         },
@@ -612,6 +613,22 @@ export async function markSyncJobDone(jobId: string) {
 }
 
 export async function markSyncJobFailed(jobId: string, error: string, retryAt?: string) {
+  const existing = await prisma.syncJob.findUnique({ where: { id: jobId } });
+  const attempts = (existing?.attempts ?? 0);
+
+  // 超过 5 次重试 → 永久标记失败
+  if (attempts >= 5) {
+    const record = await prisma.syncJob.update({
+      where: { id: jobId },
+      data: {
+        status: "failed",
+        lastError: `[${attempts} 次重试后放弃] ${error}`,
+        updatedAt: new Date(),
+      },
+    });
+    return toSyncJob(record);
+  }
+
   const nextAvailableAt = retryAt ? new Date(retryAt) : new Date(Date.now() + 15 * 60 * 1000);
   const record = await prisma.syncJob.update({
     where: { id: jobId },
@@ -1439,12 +1456,9 @@ export async function countActivitiesWithSegments(userId: string) {
 }
 
 export async function countActivitiesWithoutSegments(userId: string) {
-  // Activities from Strava that don't have any segment efforts
-  const allStrava = await prisma.activity.count({
-    where: { userId, source: "strava" },
-  });
+  const total = await prisma.activity.count({ where: { userId } });
   const withSegments = await countActivitiesWithSegments(userId);
-  return Math.max(0, allStrava - withSegments);
+  return Math.max(0, total - withSegments);
 }
 
 export async function listDailyWellness(userId: string, days: number = 7) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { enqueueSyncJob, listActivitiesByUser, countActivitiesWithSegments } from "@/lib/storage";
+import { enqueueSyncJob, listActivitiesByUser, countActivitiesWithSegments, listAllSegmentEffortsByUser } from "@/lib/storage";
 
 export async function POST(request: Request) {
   try {
@@ -9,12 +9,13 @@ export async function POST(request: Request) {
     const limit = Math.max(parseInt(body.limit, 10) || 9999, 1);
 
     const activities = await listActivitiesByUser(user.id);
-    const withSegmentsCount = await countActivitiesWithSegments(user.id);
 
-    // Find Strava activities that might not have segments yet
-    // (we check by counting, not per-activity, for performance)
-    // 所有活动都可以拉赛段 (走 ICU API, 不限 Strava 来源)
+    // 排除已有赛段数据的活动，避免重复入队
+    const allEfforts = await listAllSegmentEffortsByUser(user.id);
+    const activityIdsWithSegments = new Set(allEfforts.map((e) => e.activityId));
+
     const candidateActivities = activities
+      .filter((a) => !activityIdsWithSegments.has(a.id))
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
       .slice(0, limit);
 
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       enqueued,
-      totalActivities: candidateActivities.length,
+      totalActivities: activities.length,
+      alreadyWithSegments: activityIdsWithSegments.size,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "补拉失败";
@@ -49,14 +51,12 @@ export async function GET() {
   try {
     const user = await requireUser();
     const activities = await listActivitiesByUser(user.id);
-    const stravaCount = activities.filter((a) => a.source === "strava" || a.externalActivityId.startsWith("strava:")).length;
     const withSegmentsCount = await countActivitiesWithSegments(user.id);
 
     return NextResponse.json({
       totalActivities: activities.length,
-      stravaActivities: stravaCount,
       withSegments: withSegmentsCount,
-      missingSegments: Math.max(0, stravaCount - withSegmentsCount),
+      missingSegments: Math.max(0, activities.length - withSegmentsCount),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "查询失败";
