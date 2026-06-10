@@ -38,14 +38,20 @@ function mean(values: number[]): number {
 
 function computeHrvScore(today: DailyWellness, baseline30: DailyWellness[]): ReadinessFactor {
   const hrvValues = baseline30.map((d) => d.hrv).filter((v): v is number => v != null);
-  const baselineHrv = mean(hrvValues);
+  const baselineHrv = hrvValues.length > 0 ? mean(hrvValues) : 0;
 
-  if (!today.hrv || baselineHrv === 0) {
+  if (!today.hrv) {
+    if (baselineHrv > 0) {
+      return { name: "HRV", score: 50, weight: 0.3, detail: `无今日数据（基线 ${Math.round(baselineHrv)} ms）` };
+    }
     return { name: "HRV", score: 50, weight: 0.3, detail: "数据不足" };
   }
 
+  if (baselineHrv === 0) {
+    return { name: "HRV", score: 50, weight: 0.3, detail: `${today.hrv} ms（基线数据不足）` };
+  }
+
   const deviation = (today.hrv - baselineHrv) / baselineHrv;
-  // +20% deviation → 100, -20% → 0, linear in between
   const score = clamp(50 + deviation * 250, 0, 100);
   const pct = Math.round(deviation * 100);
   const baselineStr = `基线 ${Math.round(baselineHrv)}`;
@@ -58,12 +64,19 @@ function computeHrvScore(today: DailyWellness, baseline30: DailyWellness[]): Rea
 
 function computeRestingHrScore(recent7: DailyWellness[], baseline30: DailyWellness[]): ReadinessFactor {
   const baselineValues = baseline30.map((d) => d.restingHr).filter((v): v is number => v != null);
-  const baselineRhr = mean(baselineValues);
+  const baselineRhr = baselineValues.length > 0 ? mean(baselineValues) : 0;
 
   const recentValues = recent7.map((d) => d.restingHr).filter((v): v is number => v != null);
 
-  if (recentValues.length < 2 || baselineRhr === 0) {
+  if (recentValues.length < 2) {
+    if (baselineRhr > 0) {
+      return { name: "静息心率", score: 50, weight: 0.25, detail: `近期数据不足（基线 ${Math.round(baselineRhr)} bpm）` };
+    }
     return { name: "静息心率", score: 50, weight: 0.25, detail: "数据不足" };
+  }
+
+  if (baselineRhr === 0) {
+    return { name: "静息心率", score: 50, weight: 0.25, detail: `${recentValues[0]} bpm（基线数据不足）` };
   }
 
   const todayRhr = recentValues[0];

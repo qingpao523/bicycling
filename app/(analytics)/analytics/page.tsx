@@ -29,13 +29,16 @@ export default async function AnalyticsHomePage() {
   const weekDuration = weekActivities.reduce((sum, a) => sum + a.movingTimeMin, 0);
   const weekDistance = weekActivities.reduce((sum, a) => sum + a.distanceKm, 0);
 
-  // Last 7 days TSS
+  // Last 7 days TSS — group by local date, not UTC
+  const localDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = localDateKey(date);
     const dayTss = activities
-      .filter((a) => a.startTime.startsWith(dateKey))
+      .filter((a) => localDateKey(new Date(a.startTime)) === dateKey)
       .reduce((sum, a) => sum + (a.tss ?? 0), 0);
     return { date: dateKey, tss: dayTss, label: date.toLocaleDateString("zh-CN", { weekday: "short" }) };
   });

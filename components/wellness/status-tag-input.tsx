@@ -37,27 +37,18 @@ export function StatusTagInput({ currentTag, date }: StatusTagInputProps) {
   }
 
   return (
-    <div className="status-tag-input">
-      <span className="status-tag-label">今天状态</span>
-      <div className="status-tag-buttons">
-        {TAGS.map(({ value, label, emoji }) => (
-          <button
-            key={value}
-            type="button"
-            disabled={saving}
-            className={`status-tag-btn ${selected === value ? "status-tag-btn--active" : ""}`}
-            onClick={() => handleTag(value)}
-          >
-            <span>{emoji}</span>
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
-      {selected && (
-        <p className="status-tag-note">
-          已标记，readiness 分数已调整
-        </p>
-      )}
+    <div className="status-tag-pills">
+      {TAGS.map(({ value, label, emoji }) => (
+        <button
+          key={value}
+          type="button"
+          disabled={saving}
+          className={`status-pill ${selected === value ? "status-pill--active" : ""}`}
+          onClick={() => handleTag(value)}
+        >
+          {emoji} {label}
+        </button>
+      ))}
     </div>
   );
 }

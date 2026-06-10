@@ -1,6 +1,6 @@
 "use client";
 
-interface ChartDataPoint {
+export interface ChartDataPoint {
   date: string;
   hrv: number | null;
   restingHr: number | null;
@@ -12,7 +12,7 @@ interface WellnessChartsProps {
   data: ChartDataPoint[];
 }
 
-function MiniChart({
+export function MiniChart({
   data,
   label,
   unit,

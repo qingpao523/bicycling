@@ -3,8 +3,8 @@ import { listDailyWellness, listActivitiesByUser } from "@/lib/storage";
 import { computeReadiness } from "@/lib/engine/readiness-engine";
 import { calculatePmc, getCurrentPmc } from "@/lib/engine/pmc";
 import { ReadinessCard } from "@/components/wellness/readiness-card";
-import { WellnessCharts } from "@/components/wellness/wellness-charts";
 import { StatusTagInput } from "@/components/wellness/status-tag-input";
+import { WellnessAiPanel } from "@/components/wellness/wellness-ai-panel";
 
 export const metadata = { title: "个人状态" };
 
@@ -55,17 +55,18 @@ export default async function WellnessPage() {
 
   return (
     <div className="wellness-page">
-      <h1 className="wellness-page-title">个人状态</h1>
-
-      <div className="wellness-top-section">
-        <ReadinessCard
-          score={readiness.score}
-          label={readiness.label}
-          color={readiness.color}
-          factors={readiness.factors}
-        />
+      <div className="wellness-page-header">
+        <h1 className="wellness-page-title">个人状态</h1>
         <StatusTagInput currentTag={todayEntry.statusTag} date={today} />
       </div>
+
+      <ReadinessCard
+        score={readiness.score}
+        label={readiness.label}
+        color={readiness.color}
+        factors={readiness.factors}
+        chartData={chartData}
+      />
 
       {readiness.suggestions.length > 0 && (
         <div className="wellness-suggestions">
@@ -78,7 +79,7 @@ export default async function WellnessPage() {
         </div>
       )}
 
-      <WellnessCharts data={chartData} />
+      <WellnessAiPanel />
     </div>
   );
 }

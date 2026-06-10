@@ -274,6 +274,19 @@ model AnalyticsAiReport {
   @@index([userId, generatedAt])
 }
 
+model WellnessAiReport {
+  id           String   @id
+  userId       String   @unique
+  reportJson   String
+  contextJson  String
+  model        String
+  generatedAt  DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  @@index([userId, generatedAt])
+}
+
 model AnalyticsAiChatMessage {
   id         String   @id
   userId     String

@@ -270,22 +270,19 @@ export async function handleSegmentFetchJob(user: User, job: SyncJob) {
   const isStravaPrefix = externalActivityId.startsWith("strava:");
   const isPureNumber = !isIntervalsId && !isStravaPrefix;
 
-  // i 前缀 → Intervals.icu 原生 ID，直接走 ICU API
-  if (isIntervalsId) {
+  // 优先 ICU：i 前缀和 strava: 前缀 ICU 都能识别
+  if ((isIntervalsId || isStravaPrefix) && user.intervalsApiKeyEncrypted) {
     return handleSegmentFetchViaIntervals(user, activityId, externalActivityId, upsertSegment, upsertSegmentEffort);
   }
 
-  // strava: 前缀或纯数字 → 优先 Strava API（数据更完整）
-  if (user.stravaAccessTokenEncrypted) {
+  // ICU 不可用时 fallback Strava（strava: 前缀或纯数字都行）
+  if (!isIntervalsId && user.stravaAccessTokenEncrypted) {
     return handleSegmentFetchViaStrava(user, activityId, externalActivityId, upsertSegment, upsertSegmentEffort);
   }
 
-  // 无 Strava token 时：strava: 前缀 ICU 也能解析，fallback 到 ICU
-  if (isStravaPrefix && user.intervalsApiKeyEncrypted) {
-    return handleSegmentFetchViaIntervals(user, activityId, externalActivityId, upsertSegment, upsertSegmentEffort);
+  if (!user.intervalsApiKeyEncrypted && !user.stravaAccessTokenEncrypted) {
+    return { skipped: "未配置可用的 API 凭证" };
   }
-
-  // 纯数字 + 无 Strava token → ICU 会 422，只能跳过
   return { skipped: isPureNumber ? "纯数字 ID 需要 Strava token 才能拉取赛段" : "未配置可用的 API 凭证" };
 }
 

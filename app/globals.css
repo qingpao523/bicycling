@@ -3198,16 +3198,17 @@ pre {
   margin: 0 auto;
   padding: 24px 16px 100px;
 }
+.wellness-page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
 .wellness-page-title {
   font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 20px;
-}
-.wellness-top-section {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin: 0;
 }
 
 .readiness-card {
@@ -3215,14 +3216,19 @@ pre {
   border-radius: var(--radius-lg);
   padding: 20px;
   box-shadow: var(--shadow-soft);
-  flex: 1;
-  min-width: 220px;
+  margin-bottom: 20px;
+}
+.readiness-overview-top {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 .readiness-score-ring {
   position: relative;
   width: 120px;
   height: 120px;
-  margin: 0 auto 16px;
+  flex-shrink: 0;
 }
 .readiness-svg {
   width: 100%;
@@ -3245,6 +3251,22 @@ pre {
   font-size: 0.8rem;
   color: var(--muted);
   margin-top: 4px;
+}
+.readiness-mini-charts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.readiness-mini-charts .wellness-chart-card {
+  padding: 10px 12px;
+}
+.readiness-mini-charts .wellness-chart-value {
+  font-size: 0.95rem;
+}
+.readiness-mini-charts .wellness-chart-svg {
+  height: 36px;
 }
 .readiness-factors {
   display: flex;
@@ -3279,48 +3301,41 @@ pre {
   color: var(--muted);
 }
 
-.status-tag-input {
-  background: var(--surface-strong);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: var(--shadow-soft);
-  min-width: 180px;
-}
-.status-tag-label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-.status-tag-buttons {
-  display: flex;
-  flex-direction: column;
+/* Status tag pills (inline in header) */
+.status-tag-pills {
+  display: inline-flex;
   gap: 8px;
 }
-.status-tag-btn {
-  display: flex;
+.status-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 4px;
+  padding: 6px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: 20px;
   background: var(--surface-alt);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   transition: all 0.15s;
+  white-space: nowrap;
 }
-.status-tag-btn:hover {
+.status-pill:hover {
   border-color: var(--accent);
 }
-.status-tag-btn--active {
+.status-pill--active {
   background: var(--accent-soft);
   border-color: var(--accent);
   font-weight: 600;
 }
-.status-tag-note {
-  margin-top: 10px;
-  font-size: 0.75rem;
-  color: var(--muted);
+
+@media (max-width: 540px) {
+  .readiness-overview-top {
+    flex-direction: column;
+    align-items: center;
+  }
+  .readiness-mini-charts {
+    width: 100%;
+  }
 }
 
 .wellness-suggestions {
