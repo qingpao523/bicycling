@@ -2,14 +2,15 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BarChart3, CalendarClock, Heart, Settings, Shield } from "lucide-react";
+import { BarChart3, CalendarClock, Heart, MessageCircle, Settings, Shield } from "lucide-react";
 
 interface BottomNavProps {
   isAdmin: boolean;
 }
 
 const TABS = [
-  { href: "/analytics", icon: BarChart3, label: "首页", prefetch: true },
+  { href: "/chat", icon: MessageCircle, label: "对话", prefetch: true },
+  { href: "/analytics", icon: BarChart3, label: "分析", prefetch: true },
   { href: "/activities", icon: CalendarClock, label: "训练", prefetch: true },
   { href: "/wellness", icon: Heart, label: "状态", prefetch: true },
   { href: "/settings", icon: Settings, label: "设置", prefetch: false },

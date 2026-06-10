@@ -3855,6 +3855,30 @@ pre {
   color: var(--accent, #1f57d6);
 }
 
+/* ─── 全屏对话页 ──────────────── */
+.chat-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: calc(100vh - 120px);
+  max-height: calc(100vh - 120px);
+}
+
+@media (max-width: 768px) {
+  .chat-main {
+    height: calc(100vh - 56px - env(safe-area-inset-bottom));
+    max-height: calc(100vh - 56px - env(safe-area-inset-bottom));
+  }
+}
+
 /* ─── CopilotKit 浮动按钮：移动端避开底部导航 ──────────────── */
 @media (max-width: 768px) {
   .copilotKitSidebar,

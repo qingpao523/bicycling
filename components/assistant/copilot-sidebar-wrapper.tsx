@@ -52,6 +52,8 @@ export function CopilotSidebarWrapper({ user, systemPrompt, isNewUser }: Props) 
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  if (pathname === "/chat") return null;
+
   useEffect(() => {
     if (isNewUser) {
       const timer = setTimeout(() => setOpen(true), 500);
@@ -95,27 +97,6 @@ export function CopilotSidebarWrapper({ user, systemPrompt, isNewUser }: Props) 
   });
 
   useCopilotAction({
-    name: "syncData",
-    description: "同步用户的训练数据",
-    parameters: [
-      {
-        name: "source",
-        type: "string",
-        description: "数据源: intervals(intervals.icu) 或 strava",
-        required: true,
-      },
-    ],
-    handler: async ({ source }) => {
-      const endpoint = source === "intervals"
-        ? "/api/integrations/intervals/sync"
-        : "/api/integrations/strava/sync";
-      const res = await fetch(endpoint, { method: "POST" });
-      if (!res.ok) return `同步失败：${res.statusText}`;
-      return `已触发 ${source} 数据同步，数据会在后台陆续更新`;
-    },
-  });
-
-  useCopilotAction({
     name: "saveUserProfile",
     description: "保存用户的个人资料信息（体重、FTP、最大心率、训练目标、设备类型、intervals API Key等）。当用户在对话中提供了这些信息时调用此 action 保存。",
     parameters: [
@@ -142,17 +123,6 @@ export function CopilotSidebarWrapper({ user, systemPrompt, isNewUser }: Props) 
       if (!res.ok) return "保存失败，请稍后重试";
       router.refresh();
       return "个人资料已保存";
-    },
-  });
-
-  useCopilotAction({
-    name: "getTrainingOverview",
-    description: "获取用户的训练数据概览，包括最近活动统计",
-    parameters: [],
-    handler: async () => {
-      const res = await fetch("/api/system/health");
-      if (!res.ok) return "无法获取系统状态";
-      return await res.json();
     },
   });
 

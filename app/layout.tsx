@@ -52,7 +52,7 @@ export default async function RootLayout({
           <div className="shell">
             <header className="topbar desktop-only">
               <div className="brand">
-                <Link href="/analytics" style={{ display: "contents", textDecoration: "none", color: "inherit" }}>
+                <Link href="/chat" style={{ display: "contents", textDecoration: "none", color: "inherit" }}>
                   <div className="brand-badge">
                     <Bike size={22} />
                   </div>
