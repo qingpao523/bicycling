@@ -5,11 +5,8 @@ import { Bike } from "lucide-react";
 
 import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
-import { CopilotProvider } from "@/components/assistant/copilot-provider";
-import { CopilotSidebarWrapper } from "@/components/assistant/copilot-sidebar-wrapper";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { UserMenu } from "@/components/layout/user-menu";
-import { buildAssistantSystemPrompt } from "@/lib/assistant/system-prompt";
 
 // next/font 在 build 时下载并自托管字体, 消除运行时 fonts.googleapis.com 阻塞请求
 const ibmPlex = IBM_Plex_Sans({
@@ -42,13 +39,11 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { config, user, ready } = await getLayoutContext();
 
-  const isNewUser = ready && user && user.onboardingStatus !== "completed";
-  const showCopilot = ready && !!user;
+  const showBottomNav = ready && !!user;
 
   return (
     <html lang="zh-CN" className={`${ibmPlex.variable} ${spaceGrotesk.variable}`}>
       <body>
-        <CopilotProvider>
           <div className="shell">
             <header className="topbar desktop-only">
               <div className="brand">
@@ -83,21 +78,7 @@ export default async function RootLayout({
             </header>
             {children}
           </div>
-          {showCopilot && (
-            <CopilotSidebarWrapper
-              user={{
-                name: user.name,
-                userType: user.userType ?? undefined,
-                ftp: user.ftp ?? undefined,
-                weightKg: user.weightKg ?? undefined,
-                maxHr: user.maxHr ?? undefined,
-              }}
-              systemPrompt={buildAssistantSystemPrompt(user)}
-              isNewUser={!!isNewUser}
-            />
-          )}
-          {showCopilot && <BottomNav isAdmin={user.role === "admin"} />}
-        </CopilotProvider>
+          {showBottomNav && <BottomNav isAdmin={user.role === "admin"} />}
       </body>
     </html>
   );
