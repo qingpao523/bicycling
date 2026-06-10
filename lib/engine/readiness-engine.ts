@@ -48,7 +48,10 @@ function computeHrvScore(today: DailyWellness, baseline30: DailyWellness[]): Rea
   // +20% deviation → 100, -20% → 0, linear in between
   const score = clamp(50 + deviation * 250, 0, 100);
   const pct = Math.round(deviation * 100);
-  const detail = pct >= 0 ? `高于基线 ${pct}%` : `低于基线 ${Math.abs(pct)}%`;
+  const baselineStr = `基线 ${Math.round(baselineHrv)}`;
+  const detail = pct >= 0
+    ? `${today.hrv} ms（${baselineStr}，高 ${pct}%）`
+    : `${today.hrv} ms（${baselineStr}，低 ${Math.abs(pct)}%）`;
 
   return { name: "HRV", score: Math.round(score), weight: 0.3, detail };
 }
