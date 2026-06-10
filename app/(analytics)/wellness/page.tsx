@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { listDailyWellness, listActivitiesByUser } from "@/lib/storage";
+import { listDailyWellness, listActivitiesLightByUser } from "@/lib/storage";
 import { computeReadiness } from "@/lib/engine/readiness-engine";
 import { calculatePmc, getCurrentPmc } from "@/lib/engine/pmc";
 import { ReadinessCard } from "@/components/wellness/readiness-card";
@@ -14,7 +14,7 @@ export default async function WellnessPage() {
   const [recent7, baseline30, activities] = await Promise.all([
     listDailyWellness(user.id, 7),
     listDailyWellness(user.id, 30),
-    listActivitiesByUser(user.id),
+    listActivitiesLightByUser(user.id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);

@@ -276,23 +276,23 @@ export default async function AnalyticsHomePage() {
                   <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>CTL − ATL</span>
                 </div>
                 <div style={{ display: "grid", gap: 4 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, padding: "6px 10px", background: "rgba(15,138,98,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 10, padding: "6px 10px", background: "rgba(15,138,98,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
                     <strong style={{ color: "#0f8a62" }}>&gt; +25</strong>
                     <span>状态过顶 · 长期减量影响适应，建议恢复训练刺激</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, padding: "6px 10px", background: "rgba(15,138,98,0.05)", borderRadius: 6, fontSize: "0.82rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 10, padding: "6px 10px", background: "rgba(15,138,98,0.05)", borderRadius: 6, fontSize: "0.82rem" }}>
                     <strong style={{ color: "#0f8a62" }}>+5 ~ +25</strong>
                     <span>状态良好 · 最适合比赛或关键高强度训练</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, padding: "6px 10px", background: "rgba(31,87,214,0.05)", borderRadius: 6, fontSize: "0.82rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 10, padding: "6px 10px", background: "rgba(31,87,214,0.05)", borderRadius: 6, fontSize: "0.82rem" }}>
                     <strong style={{ color: "#1f57d6" }}>−10 ~ +5</strong>
                     <span>中性区间 · 正常训练节奏</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, padding: "6px 10px", background: "rgba(245,158,11,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 10, padding: "6px 10px", background: "rgba(245,158,11,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
                     <strong style={{ color: "#f59e0b" }}>−30 ~ −10</strong>
                     <span>建设期 · 最有效的训练刺激区间</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, padding: "6px 10px", background: "rgba(196,77,59,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 10, padding: "6px 10px", background: "rgba(196,77,59,0.08)", borderRadius: 6, fontSize: "0.82rem" }}>
                     <strong style={{ color: "#c44d3b" }}>&lt; −30</strong>
                     <span>过度疲劳 · 必须减量恢复</span>
                   </div>

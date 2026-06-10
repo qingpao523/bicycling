@@ -1,6 +1,8 @@
-import { getAppConfig, getUserById, listUsers, listUsersWithRecentActivity, markSyncJobDone, markSyncJobFailed, claimAvailableSyncJobs, updateAppConfig } from "@/lib/storage";
+import { getAppConfig, getUserById, listUsers, listUsersWithRecentActivity, markSyncJobDone, markSyncJobFailed, claimAvailableSyncJobs, updateAppConfig, enqueueSyncJob } from "@/lib/storage";
 import { handleIntervalsStreamBackfillJob, runIntervalsSync } from "@/lib/intervals-sync";
 import { handleStravaDeleteJob, handleStravaStreamBackfillJob, runStravaSync } from "@/lib/strava-sync";
+import { decryptSecret } from "@/lib/crypto";
+import { prisma } from "@/lib/prisma";
 import type { User } from "@/lib/types";
 
 function envValue(name: string) {
@@ -133,6 +135,90 @@ export async function runScheduledAutoSync() {
   });
 
   return { skipped: false, results, streamBackfillEnqueue: backfillResults };
+}
+
+const ICU_BASE_URL = "https://intervals.icu/api/v1";
+
+function icuBasicAuth(apiKey: string) {
+  return `Basic ${Buffer.from(`API_KEY:${apiKey}`).toString("base64")}`;
+}
+
+export async function pollUserForNewActivities(user: User): Promise<{ newActivities: number; totalChecked: number; enqueued: boolean }> {
+  if (!user.intervalsApiKeyEncrypted || !user.intervalsAthleteId) {
+    return { newActivities: 0, totalChecked: 0, enqueued: false };
+  }
+
+  const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const response = await fetch(
+    `${ICU_BASE_URL}/athlete/${user.intervalsAthleteId}/activities?oldest=${today}&newest=${today}`,
+    {
+      headers: { Authorization: icuBasicAuth(apiKey), Accept: "application/json" },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`ICU API ${response.status} for athlete ${user.intervalsAthleteId}`);
+  }
+
+  const icuActivities = (await response.json()) as Record<string, unknown>[];
+  const icuIds = icuActivities.map((a) => String(a.id ?? "")).filter(Boolean);
+
+  if (icuIds.length === 0) {
+    return { newActivities: 0, totalChecked: 0, enqueued: false };
+  }
+
+  const existing = await prisma.activity.findMany({
+    where: { userId: user.id, externalActivityId: { in: icuIds } },
+    select: { externalActivityId: true },
+  });
+  const existingSet = new Set(existing.map((a) => a.externalActivityId));
+
+  const aliases = await prisma.activityAlias.findMany({
+    where: { userId: user.id, source: "intervals.icu", externalActivityId: { in: icuIds } },
+    select: { externalActivityId: true },
+  });
+  for (const a of aliases) existingSet.add(a.externalActivityId);
+
+  const newIds = icuIds.filter((id) => !existingSet.has(id));
+
+  if (newIds.length > 0) {
+    await enqueueSyncJob({
+      userId: user.id,
+      source: "intervals.icu",
+      jobType: "sync",
+      reason: "poll_detected",
+      externalRef: `poll:${user.id}:${today}`,
+      payload: { mode: "incremental", oldest: today, detectedNewIds: newIds },
+    });
+  }
+
+  return { newActivities: newIds.length, totalChecked: icuIds.length, enqueued: newIds.length > 0 };
+}
+
+export async function pollAllUsersForNewActivities() {
+  const allUsers = await listUsers();
+  const icuUsers = allUsers.filter((u) => u.intervalsApiKeyEncrypted && u.intervalsAthleteId);
+  const results: Array<{ userId: string; newActivities: number; error?: string }> = [];
+
+  for (const user of icuUsers) {
+    try {
+      const r = await pollUserForNewActivities(user);
+      results.push({ userId: user.id, newActivities: r.newActivities });
+    } catch (e) {
+      results.push({ userId: user.id, newActivities: 0, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  const totalNew = results.reduce((s, r) => s + r.newActivities, 0);
+
+  if (totalNew > 0) {
+    await processPendingSyncJobs(totalNew + 5);
+  }
+
+  return { usersPolled: icuUsers.length, results, totalNew };
 }
 
 async function enqueueMissingStreamBackfills(user: User, limit: number): Promise<{ enqueued: number; scanned: number }> {

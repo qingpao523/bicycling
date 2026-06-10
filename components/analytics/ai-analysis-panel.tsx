@@ -133,7 +133,7 @@ export function AiAnalysisPanel() {
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Sparkles size={24} />
           </div>
-          <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: "0 0 4px" }}>AI 多维度深度分析</h2>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.88rem" }}>
               基于你的 PMC、功率曲线、训练量和心率数据，生成瓶颈分析、改善路径和个性化训练建议
@@ -267,7 +267,7 @@ export function AiAnalysisPanel() {
       )}
 
       {/* Strengths & Weaknesses */}
-      <div className="analytics-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+      <div className="analytics-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
         <div className="analytics-card" style={{ borderTop: "3px solid var(--ok)", marginBottom: 0 }}>
           <h3 style={{ margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8, color: "var(--ok)" }}>
             <CheckCircle2 size={18} /> 强项

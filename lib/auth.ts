@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -8,7 +9,7 @@ import type { User, UserRole } from "@/lib/types";
 const COOKIE_NAME = "ai_cycling_session";
 const SESSION_AGE_MS = 1000 * 60 * 60 * 24 * 14;
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(COOKIE_NAME)?.value;
   if (!sessionId) return null;
@@ -17,7 +18,7 @@ export async function getCurrentUser() {
   if (!session) return null;
 
   return getUserById(session.userId);
-}
+});
 
 export async function requireUser() {
   const user = await getCurrentUser();

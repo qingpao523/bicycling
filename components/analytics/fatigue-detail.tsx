@@ -162,7 +162,7 @@ export function FatigueDetailView({
           <h2>训练类型疲劳贡献</h2>
           <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>近 28 天 · 按 TSS 占比</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
           {Object.entries(typeCounts).map(([type, tss]) => {
             const pct = totalTss > 0 ? Math.round((tss / totalTss) * 100) : 0;
             const colors: Record<string, string> = { "耐力": "#1f57d6", "节奏": "#0f8a62", "间歇": "#f59e0b", "冲刺": "#c44d3b" };
@@ -188,7 +188,7 @@ export function FatigueDetailView({
             <h2>功率衰减分析</h2>
             <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>前半段 vs 后半段平均功率变化</span>
           </div>
-          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+          <div style={{ maxHeight: 320, overflowY: "auto", overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--line)" }}>

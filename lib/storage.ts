@@ -967,6 +967,37 @@ export async function listActivitiesByUser(userId: string) {
   ).map(toActivity);
 }
 
+export async function listActivitiesLightByUser(userId: string): Promise<Activity[]> {
+  const records = await prisma.activity.findMany({
+    where: { userId },
+    orderBy: { startTime: "desc" },
+    select: {
+      id: true, userId: true, source: true, externalActivityId: true,
+      name: true, startTime: true, distanceKm: true, movingTimeMin: true,
+      elevationM: true, avgSpeedKmh: true, avgHr: true, avgPower: true,
+      np: true, ifValue: true, tss: true, temperatureC: true,
+      recentCtl: true, recentAtl: true, recentForm: true,
+      createdAt: true, updatedAt: true,
+    },
+  });
+  return records.map((r) => ({
+    id: r.id, userId: r.userId,
+    source: r.source as Activity["source"],
+    externalActivityId: r.externalActivityId,
+    name: r.name,
+    startTime: r.startTime.toISOString(),
+    distanceKm: r.distanceKm, movingTimeMin: r.movingTimeMin,
+    elevationM: r.elevationM, avgSpeedKmh: r.avgSpeedKmh,
+    avgHr: r.avgHr ?? undefined, avgPower: r.avgPower ?? undefined,
+    np: r.np ?? undefined, ifValue: r.ifValue ?? undefined,
+    tss: r.tss ?? undefined, temperatureC: r.temperatureC ?? undefined,
+    recentCtl: r.recentCtl ?? undefined, recentAtl: r.recentAtl ?? undefined,
+    recentForm: r.recentForm ?? undefined,
+    rawSummaryJson: {}, rawStreamsJson: undefined,
+    createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
 export async function getRidePlan(id: string) {
   const record = await prisma.ridePlan.findUnique({ where: { id } });
   return record ? toRidePlan(record) : undefined;
@@ -1457,6 +1488,13 @@ export async function listAllSegmentEffortsByUser(userId: string) {
   return await prisma.segmentEffort.findMany({
     where: { userId },
     include: { segment: true },
+    orderBy: { startDate: "desc" },
+  });
+}
+
+export async function listSegmentEffortsLightByUser(userId: string) {
+  return await prisma.segmentEffort.findMany({
+    where: { userId },
     orderBy: { startDate: "desc" },
   });
 }

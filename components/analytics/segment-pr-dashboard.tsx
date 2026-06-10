@@ -2,7 +2,7 @@
 import { Trophy } from "lucide-react";
 import type { Segment, SegmentEffort } from "@/lib/types";
 
-type Props = { efforts: (SegmentEffort & { segment?: Segment })[]; segments: Segment[] };
+type Props = { efforts: SegmentEffort[]; segments: Segment[] };
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60);
@@ -47,7 +47,7 @@ export function SegmentPrDashboard({ efforts, segments }: Props) {
           <h3 style={{ fontSize: "0.92rem", marginBottom: 8 }}>近 90 天 PR</h3>
           <div style={{ display: "grid", gap: 8 }}>
             {recentPrs.slice(0, 10).map((e) => {
-              const seg = segMap.get(e.segmentId) ?? (e as any).segment;
+              const seg = segMap.get(e.segmentId);
               return (
                 <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--surface-alt, #f8fafc)", borderRadius: 8, fontSize: "0.85rem" }}>
                   <span style={{ fontWeight: 600 }}>{seg?.name ?? "未知赛段"}</span>

@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { listActivitiesByUser, listAllSegmentEffortsByUser } from "@/lib/storage";
+import { listActivitiesLightByUser } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
 import { calculatePmc } from "@/lib/engine/pmc";
 import { buildSegmentHistory, correlateSegmentWithTraining, predictSegmentEta, analyzeSegmentCausation } from "@/lib/engine/segments";
@@ -50,29 +50,27 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
     updatedAt: segRecord.updatedAt.toISOString(),
   };
 
-  const [activities, allEfforts] = await Promise.all([
-    listActivitiesByUser(user.id),
-    listAllSegmentEffortsByUser(user.id),
+  const [activities, effortRecords] = await Promise.all([
+    listActivitiesLightByUser(user.id),
+    prisma.segmentEffort.findMany({ where: { userId: user.id, segmentId: id }, orderBy: { startDate: "desc" } }),
   ]);
 
-  const segEfforts = allEfforts
-    .filter((e) => e.segmentId === id)
-    .map((e) => ({
-      id: e.id,
-      segmentId: e.segmentId,
-      activityId: e.activityId,
-      userId: e.userId,
-      stravaEffortId: e.stravaEffortId,
-      elapsedTime: e.elapsedTime,
-      movingTime: e.movingTime,
-      startDate: e.startDate.toISOString(),
-      averageWatts: e.averageWatts ?? undefined,
-      averageHr: e.averageHr ?? undefined,
-      maxHr: e.maxHr ?? undefined,
-      prRank: e.prRank ?? undefined,
-      komRank: e.komRank ?? undefined,
-      createdAt: e.createdAt.toISOString(),
-    }));
+  const segEfforts = effortRecords.map((e) => ({
+    id: e.id,
+    segmentId: e.segmentId,
+    activityId: e.activityId,
+    userId: e.userId,
+    stravaEffortId: e.stravaEffortId,
+    elapsedTime: e.elapsedTime,
+    movingTime: e.movingTime,
+    startDate: e.startDate.toISOString(),
+    averageWatts: e.averageWatts ?? undefined,
+    averageHr: e.averageHr ?? undefined,
+    maxHr: e.maxHr ?? undefined,
+    prRank: e.prRank ?? undefined,
+    komRank: e.komRank ?? undefined,
+    createdAt: e.createdAt.toISOString(),
+  }));
 
   const pmcData = calculatePmc(activities);
   const history = buildSegmentHistory(segEfforts, segment);

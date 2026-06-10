@@ -41,7 +41,7 @@ export function ActivitiesToolbar({ current }: Props) {
             border: "1px solid var(--line, #e5e7eb)",
             borderRadius: 8,
             background: "white",
-            minWidth: 220,
+            minWidth: 0,
           }}
         >
           <Search size={16} style={{ color: "var(--muted)" }} />

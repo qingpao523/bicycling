@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
-import { listActivitiesByUser, listUserSegments, listAllSegmentEffortsByUser, countActivitiesWithSegments } from "@/lib/storage";
+import { listActivitiesLightByUser, listUserSegments, listSegmentEffortsLightByUser, countActivitiesWithSegments } from "@/lib/storage";
 import { calculatePmc } from "@/lib/engine/pmc";
+import { gradeSegmentAbility, type SegmentAbilityGrade } from "@/lib/engine/segments";
 import { SegmentsDashboard } from "@/components/analytics/segments-dashboard";
 import { SegmentBackfillPanel } from "@/components/analytics/segment-backfill-panel";
 
@@ -9,14 +10,13 @@ export const dynamic = "force-dynamic";
 export default async function SegmentsPage() {
   const user = await requireUser();
   const [activities, segments, allEfforts] = await Promise.all([
-    listActivitiesByUser(user.id),
+    listActivitiesLightByUser(user.id),
     listUserSegments(user.id),
-    listAllSegmentEffortsByUser(user.id),
+    listSegmentEffortsLightByUser(user.id),
   ]);
 
   const pmcData = calculatePmc(activities);
 
-  // Convert Prisma dates to ISO strings for client component
   const segmentsForClient = segments.map((s) => ({
     id: s.id,
     stravaSegmentId: s.stravaSegmentId,
@@ -54,21 +54,28 @@ export default async function SegmentsPage() {
     maxHr: e.maxHr ?? undefined,
     prRank: e.prRank ?? undefined,
     komRank: e.komRank ?? undefined,
-    achievements: e.achievementsJson ? JSON.parse(e.achievementsJson) : undefined,
     deviceWatts: e.deviceWatts ?? undefined,
     createdAt: e.createdAt.toISOString(),
-    segment: e.segment ? {
-      id: e.segment.id,
-      stravaSegmentId: e.segment.stravaSegmentId,
-      name: e.segment.name,
-      distance: e.segment.distance,
-      averageGrade: e.segment.averageGrade,
-      maximumGrade: e.segment.maximumGrade ?? undefined,
-      climbCategory: e.segment.climbCategory,
-      createdAt: e.segment.createdAt.toISOString(),
-      updatedAt: e.segment.updatedAt.toISOString(),
-    } : undefined,
   }));
+
+  // Pre-compute grades server-side to avoid O(n²) on client
+  const grades: Record<string, SegmentAbilityGrade> = {};
+  if (user.weightKg) {
+    const effortsBySegment = new Map<string, typeof allEfforts>();
+    for (const e of allEfforts) {
+      let arr = effortsBySegment.get(e.segmentId);
+      if (!arr) { arr = []; effortsBySegment.set(e.segmentId, arr); }
+      arr.push(e);
+    }
+    for (const seg of segments) {
+      const segEfforts = effortsBySegment.get(seg.id);
+      if (!segEfforts?.length) continue;
+      const bestWatts = segEfforts.reduce((max, e) => Math.max(max, e.averageWatts ?? 0), 0);
+      if (bestWatts > 0) {
+        grades[seg.id] = gradeSegmentAbility({ segment: seg as any, bestEffortWkg: bestWatts / user.weightKg });
+      }
+    }
+  }
 
   const stravaCount = activities.length;
   const withSegments = await countActivitiesWithSegments(user.id);
@@ -115,6 +122,7 @@ export default async function SegmentsPage() {
         activities={activities}
         pmcData={pmcData}
         user={{ ftp: user.ftp, weightKg: user.weightKg ?? user.syncedWeightKg ?? undefined }}
+        grades={grades}
         backfillStats={{
           totalActivities: activities.length,
           stravaActivities: stravaCount,

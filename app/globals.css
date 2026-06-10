@@ -3190,6 +3190,14 @@ pre {
     padding: 10px 8px;
     font-size: 0.82rem;
   }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .segment-coverage-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* === Wellness === */
@@ -3409,7 +3417,7 @@ pre {
 /* ===== Segment Coverage ===== */
 .segment-coverage-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }

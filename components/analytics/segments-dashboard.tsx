@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Segment, SegmentEffort, Activity } from "@/lib/types";
 import type { PmcDataPoint } from "@/lib/engine/pmc";
-import { buildSegmentHistory, correlateSegmentWithTraining, predictSegmentEta, analyzeSegmentCausation, recommendSegments, gradeSegmentAbility, classifySegment, type SegmentAbilityGrade } from "@/lib/engine/segments";
+import { buildSegmentHistory, correlateSegmentWithTraining, predictSegmentEta, analyzeSegmentCausation, recommendSegments, type SegmentAbilityGrade } from "@/lib/engine/segments";
 
 import { SegmentPrDashboard } from "./segment-pr-dashboard";
 import { SegmentClassificationTable } from "./segment-classification-table";
@@ -17,10 +17,11 @@ import { SegmentBackfillPanel } from "./segment-backfill-panel";
 
 type Props = {
   segments: Segment[];
-  efforts: (SegmentEffort & { segment?: Segment })[];
+  efforts: SegmentEffort[];
   activities: Activity[];
   pmcData: PmcDataPoint[];
   user: { ftp?: number; weightKg?: number };
+  grades: Record<string, SegmentAbilityGrade>;
   backfillStats: { totalActivities: number; stravaActivities: number; withSegments: number; missingSegments: number };
 };
 
@@ -35,25 +36,24 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "tools", label: "工具" },
 ];
 
-export function SegmentsDashboard({ segments, efforts, activities, pmcData, user, backfillStats }: Props) {
+export function SegmentsDashboard({ segments, efforts, activities, pmcData, user, grades, backfillStats }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(segments[0]?.id ?? null);
 
-  // Compute grades for all segments
-  const grades: Record<string, SegmentAbilityGrade> = {};
-  for (const seg of segments) {
-    const segEfforts = efforts.filter((e) => e.segmentId === seg.id);
-    if (!segEfforts.length || !user.weightKg) continue;
-    const bestTime = Math.min(...segEfforts.map((e) => e.elapsedTime));
-    const bestWatts = segEfforts.reduce((max, e) => Math.max(max, e.averageWatts ?? 0), 0);
-    if (bestWatts > 0 && user.weightKg > 0) {
-      grades[seg.id] = gradeSegmentAbility({ segment: seg, bestEffortWkg: bestWatts / user.weightKg });
+  // O(n) index: group efforts by segmentId once
+  const effortsBySegment = useMemo(() => {
+    const map = new Map<string, SegmentEffort[]>();
+    for (const e of efforts) {
+      let arr = map.get(e.segmentId);
+      if (!arr) { arr = []; map.set(e.segmentId, arr); }
+      arr.push(e);
     }
-  }
+    return map;
+  }, [efforts]);
 
   // Selected segment data
   const selectedSegment = segments.find((s) => s.id === selectedSegmentId) ?? null;
-  const selectedEfforts = selectedSegmentId ? efforts.filter((e) => e.segmentId === selectedSegmentId) : [];
+  const selectedEfforts = selectedSegmentId ? (effortsBySegment.get(selectedSegmentId) ?? []) : [];
   const selectedHistory = selectedSegment ? buildSegmentHistory(selectedEfforts, selectedSegment) : null;
   const selectedCorrelation = selectedSegment && selectedEfforts.length >= 3
     ? correlateSegmentWithTraining({ efforts: selectedEfforts, segment: selectedSegment, pmcData })

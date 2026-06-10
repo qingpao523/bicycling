@@ -46,6 +46,7 @@ export function WellnessAiPanel() {
   const [error, setError] = useState("");
   const [report, setReport] = useState<WellnessAiResult | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [streamPercent, setStreamPercent] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -70,20 +71,48 @@ export function WellnessAiPanel() {
     if (isRegenerate) setRegenerating(true);
     else setLoading(true);
     setError("");
+    setStreamPercent(0);
     try {
-      const res = await fetch("/api/wellness/ai-report", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
+      const res = await fetch("/api/wellness/ai-report/stream", { method: "POST" });
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
         setError(data.error ?? "生成失败");
-      } else {
-        setReport(data.report);
-        setGeneratedAt(data.generatedAt);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const raw = line.trim();
+          if (!raw) continue;
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === "progress") {
+              setStreamPercent(event.percent);
+            } else if (event.type === "done") {
+              setReport(event.report);
+              setGeneratedAt(event.generatedAt);
+            } else if (event.type === "error") {
+              setError(event.error);
+            }
+          } catch {}
+        }
       }
     } catch {
       setError("网络错误，请重试");
     } finally {
       setLoading(false);
       setRegenerating(false);
+      setStreamPercent(0);
     }
   }
 
@@ -104,7 +133,7 @@ export function WellnessAiPanel() {
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, #22c55e, #3b82f6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Sparkles size={24} />
           </div>
-          <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: "0 0 4px" }}>AI 状态分析</h2>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.88rem" }}>
               基于你的生理指标，生成状态评估、增强建议和补剂推荐
@@ -130,7 +159,15 @@ export function WellnessAiPanel() {
     return (
       <div className="analytics-card" style={{ textAlign: "center", padding: 48 }}>
         <RefreshCw size={32} style={{ color: "var(--ok)", animation: "spin 1.2s linear infinite", marginBottom: 12 }} />
-        <p style={{ color: "var(--muted)", margin: 0 }}>AI 正在分析你的身体状态，通常需要 15-30 秒...</p>
+        <p style={{ color: "var(--muted)", margin: "0 0 12px" }}>AI 正在分析你的身体状态...</p>
+        {streamPercent > 0 && (
+          <div style={{ maxWidth: 240, margin: "0 auto" }}>
+            <div style={{ height: 4, background: "var(--line, #e5e7eb)", borderRadius: 2 }}>
+              <div style={{ height: "100%", width: `${streamPercent}%`, background: "var(--ok)", borderRadius: 2, transition: "width 0.3s" }} />
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)", margin: "6px 0 0" }}>{streamPercent}%</p>
+          </div>
+        )}
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
