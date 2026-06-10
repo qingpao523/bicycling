@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
-import { listDailyWellness } from "@/lib/storage";
+import { listDailyWellness, listActivitiesByUser } from "@/lib/storage";
 import { computeReadiness } from "@/lib/engine/readiness-engine";
-import { prisma } from "@/lib/prisma";
+import { calculatePmc, getCurrentPmc } from "@/lib/engine/pmc";
 import { ReadinessCard } from "@/components/wellness/readiness-card";
 import { WellnessCharts } from "@/components/wellness/wellness-charts";
 import { StatusTagInput } from "@/components/wellness/status-tag-input";
@@ -11,9 +11,10 @@ export const metadata = { title: "个人状态" };
 export default async function WellnessPage() {
   const user = await requireUser();
 
-  const [recent7, baseline30] = await Promise.all([
+  const [recent7, baseline30, activities] = await Promise.all([
     listDailyWellness(user.id, 7),
     listDailyWellness(user.id, 30),
+    listActivitiesByUser(user.id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -35,13 +36,9 @@ export default async function WellnessPage() {
     updatedAt: new Date(),
   };
 
-  // Get TSB from most recent activity
-  const latestActivity = await prisma.activity.findFirst({
-    where: { userId: user.id },
-    orderBy: { startTime: "desc" },
-    select: { recentForm: true },
-  });
-  const tsb = latestActivity?.recentForm ?? undefined;
+  const pmcData = calculatePmc(activities);
+  const currentPmc = getCurrentPmc(pmcData);
+  const tsb = currentPmc?.tsb;
 
   const readiness = computeReadiness(todayEntry, recent7, baseline30, tsb);
 
