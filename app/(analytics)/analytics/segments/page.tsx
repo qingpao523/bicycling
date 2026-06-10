@@ -70,7 +70,7 @@ export default async function SegmentsPage() {
     } : undefined,
   }));
 
-  const stravaCount = activities.filter((a) => a.source === "strava" || a.externalActivityId.startsWith("strava:")).length;
+  const stravaCount = activities.length;
   const withSegments = await countActivitiesWithSegments(user.id);
 
   if (!segments.length) {

@@ -566,6 +566,21 @@ export async function enqueueSyncJob(input: {
 
 export async function claimAvailableSyncJobs(limit = 10) {
   const now = new Date();
+
+  // 回收卡在 processing 超过 5 分钟的 job（服务重启等场景）
+  const stuckCutoff = new Date(now.getTime() - 5 * 60 * 1000);
+  await prisma.syncJob.updateMany({
+    where: {
+      status: "processing",
+      claimedAt: { lt: stuckCutoff },
+    },
+    data: {
+      status: "pending",
+      claimedAt: null,
+      updatedAt: now,
+    },
+  });
+
   const candidates = await prisma.syncJob.findMany({
     where: {
       status: "pending",

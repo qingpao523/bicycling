@@ -61,11 +61,13 @@ export async function GET() {
     const user = await requireUser();
     const activities = await listActivitiesByUser(user.id);
     const withSegmentsCount = await countActivitiesWithSegments(user.id);
+    const totalCount = activities.length;
 
     return NextResponse.json({
-      totalActivities: activities.length,
+      totalActivities: totalCount,
+      stravaActivities: totalCount,
       withSegments: withSegmentsCount,
-      missingSegments: Math.max(0, activities.length - withSegmentsCount),
+      missingSegments: Math.max(0, totalCount - withSegmentsCount),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "查询失败";
