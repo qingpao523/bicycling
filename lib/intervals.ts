@@ -98,7 +98,9 @@ export async function fetchIntervalsProfile(input: {
 
   let wellness: Record<string, unknown>[] | undefined;
   try {
-    const wellnessPayload = await fetchJson(`/athlete/${athleteId}/wellness`, input.apiKey);
+    const newest = formatDate(new Date());
+    const oldest = formatDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
+    const wellnessPayload = await fetchJson(`/athlete/${athleteId}/wellness?oldest=${oldest}&newest=${newest}`, input.apiKey);
     wellness = Array.isArray(wellnessPayload) ? wellnessPayload.filter((item): item is Record<string, unknown> => Boolean(asRecord(item))) : [];
   } catch {
     wellness = undefined;
