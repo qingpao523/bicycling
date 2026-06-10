@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { enqueueSyncJob, listActivitiesByUser, countActivitiesWithSegments, listAllSegmentEffortsByUser } from "@/lib/storage";
+import { processPendingSyncJobs } from "@/lib/system-sync";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,6 @@ export async function POST(request: Request) {
 
     const activities = await listActivitiesByUser(user.id);
 
-    // 排除已有赛段数据的活动，避免重复入队
     const allEfforts = await listAllSegmentEffortsByUser(user.id);
     const activityIdsWithSegments = new Set(allEfforts.map((e) => e.activityId));
 
@@ -35,9 +35,18 @@ export async function POST(request: Request) {
       enqueued++;
     }
 
+    // 入队完成后立即启动一轮消费，不等 auto-patrol
+    let kickstarted = 0;
+    for (let round = 0; round < 3; round++) {
+      const batch = await processPendingSyncJobs(12);
+      kickstarted += batch.length;
+      if (batch.length < 12) break;
+    }
+
     return NextResponse.json({
       success: true,
       enqueued,
+      kickstarted,
       totalActivities: activities.length,
       alreadyWithSegments: activityIdsWithSegments.size,
     });
