@@ -1,5 +1,6 @@
-import { RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { headers } from "next/headers";
+import Link from "next/link";
 
 import { CopyButton } from "@/components/copy-button";
 import { requireUser } from "@/lib/auth";
@@ -137,6 +138,9 @@ export default async function SettingsPage({
 
   return (
     <main className="settings-shell">
+      <div className="page-back-nav">
+        <Link href="/analytics"><ArrowLeft size={16} /> 返回首页</Link>
+      </div>
       <section className="panel settings-top-panel">
         <div className="settings-top-copy">
           <h1>个人设置</h1>

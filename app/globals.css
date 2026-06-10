@@ -3841,3 +3841,27 @@ pre {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
+
+/* ─── 页面返回导航 ──────────────── */
+.page-back-nav {
+  margin-bottom: 12px;
+}
+.page-back-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+.page-back-nav a:hover {
+  color: var(--accent, #1f57d6);
+}
+
+/* ─── CopilotKit 浮动按钮：移动端避开底部导航 ──────────────── */
+@media (max-width: 768px) {
+  .copilotKitSidebar,
+  .copilotKitPopup {
+    bottom: calc(56px + env(safe-area-inset-bottom) + 12px) !important;
+  }
+}

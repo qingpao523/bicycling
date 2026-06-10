@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { maskSecret } from "@/lib/format";
 import { requireSetupReady } from "@/lib/guards";
@@ -17,6 +19,9 @@ export default async function AdminPage({
 
   return (
     <main className="content-grid">
+      <div className="page-back-nav">
+        <Link href="/analytics"><ArrowLeft size={16} /> 返回首页</Link>
+      </div>
       <section className="stack">
         <div className="panel">
           <h1>管理端</h1>
