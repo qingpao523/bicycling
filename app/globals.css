@@ -3856,11 +3856,29 @@ pre {
 }
 
 /* ─── 全屏对话页 ──────────────── */
+.shell:has(.chat-layout) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .shell:has(.chat-layout) {
+    height: calc(100vh - 56px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+    padding-top: 8px;
+    padding-bottom: 0;
+  }
+}
+
 .chat-layout {
   display: flex;
   flex-direction: column;
-  min-height: 0;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-main {
@@ -3868,15 +3886,6 @@ pre {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  height: calc(100vh - 120px);
-  max-height: calc(100vh - 120px);
-}
-
-@media (max-width: 768px) {
-  .chat-main {
-    height: calc(100vh - 56px - env(safe-area-inset-bottom));
-    max-height: calc(100vh - 56px - env(safe-area-inset-bottom));
-  }
 }
 
 /* ─── CopilotKit 浮动按钮：移动端避开底部导航 ──────────────── */
