@@ -259,6 +259,13 @@ export async function handleSegmentFetchJob(user: User, job: SyncJob) {
     throw new Error("segment_fetch 任务缺少 activityId/externalActivityId。");
   }
 
+  // Skip garbage activities (distance=0 and time=0)
+  const { getActivity } = await import("@/lib/storage");
+  const activity = await getActivity(activityId);
+  if (activity && activity.distanceKm <= 0 && activity.movingTimeMin <= 0) {
+    return { skipped: "废数据（距离和时间均为0）" };
+  }
+
   // Skip if already has segment efforts
   const { listSegmentEffortsByActivity, upsertSegment, upsertSegmentEffort } = await import("@/lib/storage");
   const existing = await listSegmentEffortsByActivity(activityId);

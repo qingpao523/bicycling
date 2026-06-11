@@ -308,6 +308,11 @@ export async function fetchStravaActivityDetail(activityId: string, accessToken:
     cache: "no-store",
   });
 
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("retry-after") ?? "60", 10);
+    throw new StravaRateLimitError(retryAfter);
+  }
+
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Strava 活动详情获取失败：${response.status} ${text}`);
@@ -315,6 +320,15 @@ export async function fetchStravaActivityDetail(activityId: string, accessToken:
 
   const payload = (await response.json()) as { segment_efforts?: StravaSegmentEffortPayload[] };
   return payload.segment_efforts ?? [];
+}
+
+export class StravaRateLimitError extends Error {
+  retryAfterSeconds: number;
+  constructor(retryAfterSeconds: number) {
+    super(`Strava API 限流，需等待 ${retryAfterSeconds} 秒`);
+    this.name = "StravaRateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
 }
 
 export async function fetchStravaActivityStreams(activityId: string, accessToken: string) {
