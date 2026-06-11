@@ -24,7 +24,7 @@ function asNumber(v: unknown): number | undefined {
   return undefined;
 }
 
-async function syncWellnessData(userId: string, rawWellness: unknown) {
+export async function syncWellnessData(userId: string, rawWellness: unknown) {
   if (!Array.isArray(rawWellness) || rawWellness.length === 0) return 0;
 
   const cutoff = new Date(Date.now() - wellnessSyncDays * 24 * 60 * 60 * 1000)

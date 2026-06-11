@@ -3,26 +3,31 @@
  * 通过 Next.js instrumentation.ts 在服务启动时自启, 零额外依赖
  * 受管理端 AppConfig 控制: autoSyncEnabled / autoSyncIntervalHours / autoSyncIntervals / autoSyncStrava
  *
- * 两个独立循环:
- * 1. tick()     — 每 60s, 只消费已入队的 SyncJob (segment_fetch / stream_backfill)
- * 2. syncTick() — 每 N 小时 (config), 发起新的 intervals/strava 增量同步
+ * 三条轮询线:
+ * 1. drainQueue   — 每 60s tick, 消费已入队的 SyncJob (segment_fetch / stream_backfill)
+ * 2. pollActivities — 每 5 分钟, 轻量查询 ICU 新活动并入队
+ * 3. pollWellness — 每 30 分钟, 独立拉所有用户的 wellness 数据 (1 API call/user)
+ * 4. runFullSync  — 每 N 小时, 全量增量同步 (活动 + wellness + profile)
  *
  * Rate-limit 保护:
- * - drainQueue 遇到 429 → 设 rateLimitCooldownUntil, 后续 tick 跳过 API 调用
+ * - 任何位置遇到 429 → 设 rateLimitCooldownUntil, 后续 tick 跳过 API 调用
  * - runFullSync 即将触发时, 跳过当轮 drainQueue 以保留 API 配额
  * - runFullSync 内部逐用户 catch 并记录错误, 遇 429 提前终止
  */
 
 import { getAppConfig, listUsers, updateAppConfig } from "@/lib/storage";
-import { runIntervalsSync } from "@/lib/intervals-sync";
+import { runIntervalsSync, syncWellnessData } from "@/lib/intervals-sync";
 import { runStravaSync } from "@/lib/strava-sync";
 import { processPendingSyncJobs, pollAllUsersForNewActivities } from "@/lib/system-sync";
-import { RateLimitError } from "@/lib/intervals";
+import { RateLimitError, fetchIntervalsWellness } from "@/lib/intervals";
+import { decryptSecret } from "@/lib/crypto";
 
 const TICK_MS = 60_000;
 const POLL_INTERVAL_MS = 5 * 60_000;
+const WELLNESS_POLL_MS = 30 * 60_000;
 let started = false;
 let lastPollAt = 0;
+let lastWellnessPollAt = 0;
 let rateLimitCooldownUntil = 0;
 
 export function startAutoPatrol() {
@@ -59,15 +64,14 @@ async function tick() {
     const intervalMs = (config.autoSyncIntervalHours || 1) * 60 * 60 * 1000;
     const fullSyncDue = !lastRunAt || now - lastRunAt >= intervalMs;
 
-    // 限流冷却期内跳过所有 API 调用
     if (isRateLimited()) return;
 
-    // fullSync 即将触发时跳过 drainQueue，保留 API 配额给全量同步
+    // fullSync 即将触发时跳过 drainQueue，保留 API 配额
     if (!fullSyncDue) {
       await drainQueue();
     }
 
-    // 每 5 分钟轮询所有用户的 ICU 新活动（轻量 API 调用）
+    // 每 5 分钟轮询新活动
     if (!fullSyncDue && config.autoSyncIntervals && (!lastPollAt || now - lastPollAt >= POLL_INTERVAL_MS)) {
       lastPollAt = now;
       try {
@@ -85,8 +89,15 @@ async function tick() {
       }
     }
 
+    // 每 30 分钟独立轮询 wellness 数据（不受 fullSync 影响）
+    if (!fullSyncDue && config.autoSyncIntervals && (!lastWellnessPollAt || now - lastWellnessPollAt >= WELLNESS_POLL_MS)) {
+      lastWellnessPollAt = now;
+      await pollAllWellness();
+    }
+
     if (fullSyncDue) {
       await runFullSync(config);
+      lastWellnessPollAt = now;
     }
   } catch (err) {
     console.error("[auto-patrol] tick 顶层异常:", err);
@@ -117,6 +128,41 @@ async function drainQueue() {
   }
   if (total > 0) {
     console.log(`[auto-patrol] 本轮消费 ${total} 个队列任务`);
+  }
+}
+
+async function pollAllWellness() {
+  if (isRateLimited()) return;
+
+  const users = await listUsers();
+  let synced = 0;
+  let errors = 0;
+
+  for (const user of users) {
+    if (!user.intervalsApiKeyEncrypted || !user.intervalsAthleteId) continue;
+
+    try {
+      const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
+      const rawWellness = await fetchIntervalsWellness({
+        athleteId: user.intervalsAthleteId,
+        apiKey,
+        days: 7,
+      });
+      const count = await syncWellnessData(user.id, rawWellness);
+      if (count > 0) synced++;
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        setRateLimitCooldown(err.retryAfterMs);
+        console.error(`[auto-patrol] wellness 轮询遇到 429，终止（已完成 ${synced}/${users.length}）`);
+        return;
+      }
+      errors++;
+      console.error(`[auto-patrol] wellness 同步失败 ${user.name ?? user.email}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (synced > 0 || errors > 0) {
+    console.log(`[auto-patrol] wellness 轮询: ${synced} 用户更新, ${errors} 失败`);
   }
 }
 
@@ -163,7 +209,6 @@ async function runFullSync(config: Awaited<ReturnType<typeof getAppConfig>>) {
     }
   }
 
-  // 同步后消费新入队的任务（如果没限流）
   if (!isRateLimited()) {
     await drainQueue();
   }

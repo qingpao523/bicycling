@@ -104,6 +104,18 @@ function normalizeStreamPayload(payload: unknown) {
   return normalized;
 }
 
+export async function fetchIntervalsWellness(input: {
+  athleteId?: string;
+  apiKey: string;
+  days?: number;
+}) {
+  const athleteId = input.athleteId?.trim() || "0";
+  const newest = formatDate(new Date());
+  const oldest = formatDate(new Date(Date.now() - (input.days ?? 30) * 24 * 60 * 60 * 1000));
+  const payload = await fetchJson(`/athlete/${athleteId}/wellness?oldest=${oldest}&newest=${newest}`, input.apiKey);
+  return Array.isArray(payload) ? payload.filter((item): item is Record<string, unknown> => Boolean(asRecord(item))) : [];
+}
+
 export async function fetchIntervalsProfile(input: {
   athleteId?: string;
   apiKey: string;
