@@ -124,7 +124,7 @@ export function buildCopilotActions(user: User): Action<any>[] {
         const currentPmc = getCurrentPmc(pmcData);
         const tsb = currentPmc?.tsb;
 
-        const result = computeReadiness(todayEntry, recent7, baseline30, tsb);
+        const result = computeReadiness(todayEntry, recent7, baseline30, tsb, currentPmc?.ctl, currentPmc?.atl);
 
         return {
           score: result.score,

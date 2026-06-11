@@ -51,7 +51,7 @@ export async function POST() {
 
     const pmcData = calculatePmc(activities);
     const currentPmc = getCurrentPmc(pmcData);
-    const readiness = computeReadiness(todayEntry, recent7, baseline30, currentPmc?.tsb);
+    const readiness = computeReadiness(todayEntry, recent7, baseline30, currentPmc?.tsb, currentPmc?.ctl, currentPmc?.atl);
 
     const context = buildWellnessContext(user, readiness, recent7, baseline30, currentPmc?.tsb);
 

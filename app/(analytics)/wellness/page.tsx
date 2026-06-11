@@ -5,15 +5,18 @@ import { calculatePmc, getCurrentPmc } from "@/lib/engine/pmc";
 import { ReadinessCard } from "@/components/wellness/readiness-card";
 import { StatusTagInput } from "@/components/wellness/status-tag-input";
 import { WellnessAiPanel } from "@/components/wellness/wellness-ai-panel";
+import { WellnessHistoryChart } from "@/components/wellness/wellness-history-chart";
+import { SciencePanel } from "@/components/wellness/science-panel";
 
 export const metadata = { title: "个人状态" };
 
 export default async function WellnessPage() {
   const user = await requireUser();
 
-  const [recent7, baseline30, activities] = await Promise.all([
+  const [recent7, baseline30, history180, activities] = await Promise.all([
     listDailyWellness(user.id, 7),
     listDailyWellness(user.id, 30),
+    listDailyWellness(user.id, 180),
     listActivitiesLightByUser(user.id),
   ]);
 
@@ -39,8 +42,10 @@ export default async function WellnessPage() {
   const pmcData = calculatePmc(activities);
   const currentPmc = getCurrentPmc(pmcData);
   const tsb = currentPmc?.tsb;
+  const ctl = currentPmc?.ctl;
+  const atl = currentPmc?.atl;
 
-  const readiness = computeReadiness(todayEntry, recent7, baseline30, tsb);
+  const readiness = computeReadiness(todayEntry, recent7, baseline30, tsb, ctl, atl);
 
   const chartData = baseline30
     .slice()
@@ -51,6 +56,19 @@ export default async function WellnessPage() {
       restingHr: d.restingHr,
       sleepHours: d.sleepSecs != null ? Math.round((d.sleepSecs / 3600) * 10) / 10 : null,
       sleepScore: d.sleepScore,
+    }));
+
+  const historyData = history180
+    .slice()
+    .reverse()
+    .map((d) => ({
+      date: d.date,
+      hrv: d.hrv,
+      restingHr: d.restingHr,
+      sleepHours: d.sleepSecs != null ? Math.round((d.sleepSecs / 3600) * 10) / 10 : null,
+      sleepHoursScaled: d.sleepSecs != null ? Math.min(100, Math.round(((d.sleepSecs / 3600) / 8) * 100)) : null,
+      readinessScore: d.readinessScore,
+      statusTag: d.statusTag,
     }));
 
   return (
@@ -68,6 +86,8 @@ export default async function WellnessPage() {
         chartData={chartData}
       />
 
+      <WellnessHistoryChart data={historyData} />
+
       {readiness.suggestions.length > 0 && (
         <div className="wellness-suggestions">
           <h3>建议</h3>
@@ -80,6 +100,8 @@ export default async function WellnessPage() {
       )}
 
       <WellnessAiPanel />
+
+      <SciencePanel />
     </div>
   );
 }
