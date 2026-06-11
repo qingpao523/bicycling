@@ -49,6 +49,7 @@ export async function POST() {
     const todayEntry = recent7.find((d) => d.date === today) ?? {
       id: "", userId: user.id, date: today,
       restingHr: null, hrv: null, sleepSecs: null, sleepScore: null,
+      sleepQuality: null, awakeTime: null, lightSleepTime: null, remSleepTime: null, deepSleepTime: null, avgSleepBreathRate: null,
       weight: null, spO2: null, steps: null, statusTag: null, note: null,
       readinessScore: null, createdAt: new Date(), updatedAt: new Date(),
     };

@@ -386,13 +386,19 @@ model DailyWellness {
   userId         String
   date           String
 
-  restingHr      Int?
-  hrv            Float?
-  sleepSecs      Int?
-  sleepScore     Int?
-  weight         Float?
-  spO2           Int?
-  steps          Int?
+  restingHr          Int?
+  hrv                Float?
+  sleepSecs          Int?
+  sleepScore         Int?
+  sleepQuality       Int?
+  awakeTime          Int?
+  lightSleepTime     Int?
+  remSleepTime       Int?
+  deepSleepTime      Int?
+  avgSleepBreathRate Float?
+  weight             Float?
+  spO2               Int?
+  steps              Int?
 
   statusTag      String?
   note           String?

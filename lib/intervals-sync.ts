@@ -39,31 +39,35 @@ export async function syncWellnessData(userId: string, rawWellness: unknown) {
   const recent = entries.filter((e) => (e.id as string) >= cutoff);
   let synced = 0;
 
+  // 临时日志: 打印第一条 wellness 的全部 key，确认 ICU 实际返回了哪些睡眠字段
+  if (recent.length > 0) {
+    const sample = recent[recent.length - 1];
+    const sleepKeys = Object.keys(sample).filter((k) => /sleep|awake|rem|deep|light|breath|nap|bed/i.test(k));
+    console.log(`[wellness-sync] 原始字段 keys(${Object.keys(sample).length}): ${Object.keys(sample).join(", ")}`);
+    console.log(`[wellness-sync] 睡眠相关: ${sleepKeys.map((k) => `${k}=${JSON.stringify(sample[k])}`).join(", ") || "无"}`);
+  }
+
   for (const entry of recent) {
     const date = entry.id as string;
+    const wellnessData = {
+      restingHr: asNumber(entry.restingHR) ?? asNumber(entry.resting_hr) ?? undefined,
+      hrv: asNumber(entry.hrv) ?? asNumber(entry.rmssd) ?? undefined,
+      sleepSecs: asNumber(entry.sleepSecs) ?? asNumber(entry.sleep_secs) ?? undefined,
+      sleepScore: asNumber(entry.sleepScore) ?? asNumber(entry.sleep_score) ?? undefined,
+      sleepQuality: asNumber(entry.sleepQuality) ?? asNumber(entry.sleep_quality) ?? undefined,
+      awakeTime: asNumber(entry.awakeTime) ?? asNumber(entry.awake_time) ?? undefined,
+      lightSleepTime: asNumber(entry.lightSleepTime) ?? asNumber(entry.light_sleep_time) ?? undefined,
+      remSleepTime: asNumber(entry.remSleepTime) ?? asNumber(entry.rem_sleep_time) ?? undefined,
+      deepSleepTime: asNumber(entry.deepSleepTime) ?? asNumber(entry.deep_sleep_time) ?? undefined,
+      avgSleepBreathRate: asNumber(entry.avgSleepBreathRate) ?? asNumber(entry.avg_sleep_breath_rate) ?? undefined,
+      weight: asNumber(entry.weight) ?? asNumber(entry.icu_weight) ?? undefined,
+      spO2: asNumber(entry.spO2) ?? asNumber(entry.spo2) ?? undefined,
+      steps: asNumber(entry.steps) ?? undefined,
+    };
     await prisma.dailyWellness.upsert({
       where: { userId_date: { userId, date } },
-      update: {
-        restingHr: asNumber(entry.restingHR) ?? asNumber(entry.resting_hr) ?? undefined,
-        hrv: asNumber(entry.hrv) ?? asNumber(entry.rmssd) ?? undefined,
-        sleepSecs: asNumber(entry.sleepSecs) ?? asNumber(entry.sleep_secs) ?? undefined,
-        sleepScore: asNumber(entry.sleepScore) ?? asNumber(entry.sleep_score) ?? undefined,
-        weight: asNumber(entry.weight) ?? asNumber(entry.icu_weight) ?? undefined,
-        spO2: asNumber(entry.spO2) ?? asNumber(entry.spo2) ?? undefined,
-        steps: asNumber(entry.steps) ?? undefined,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        date,
-        restingHr: asNumber(entry.restingHR) ?? asNumber(entry.resting_hr) ?? undefined,
-        hrv: asNumber(entry.hrv) ?? asNumber(entry.rmssd) ?? undefined,
-        sleepSecs: asNumber(entry.sleepSecs) ?? asNumber(entry.sleep_secs) ?? undefined,
-        sleepScore: asNumber(entry.sleepScore) ?? asNumber(entry.sleep_score) ?? undefined,
-        weight: asNumber(entry.weight) ?? asNumber(entry.icu_weight) ?? undefined,
-        spO2: asNumber(entry.spO2) ?? asNumber(entry.spo2) ?? undefined,
-        steps: asNumber(entry.steps) ?? undefined,
-      },
+      update: { ...wellnessData, updatedAt: new Date() },
+      create: { userId, date, ...wellnessData },
     });
     synced++;
   }
