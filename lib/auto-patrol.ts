@@ -6,17 +6,24 @@
  * 两个独立循环:
  * 1. tick()     — 每 60s, 只消费已入队的 SyncJob (segment_fetch / stream_backfill)
  * 2. syncTick() — 每 N 小时 (config), 发起新的 intervals/strava 增量同步
+ *
+ * Rate-limit 保护:
+ * - drainQueue 遇到 429 → 设 rateLimitCooldownUntil, 后续 tick 跳过 API 调用
+ * - runFullSync 即将触发时, 跳过当轮 drainQueue 以保留 API 配额
+ * - runFullSync 内部逐用户 catch 并记录错误, 遇 429 提前终止
  */
 
 import { getAppConfig, listUsers, updateAppConfig } from "@/lib/storage";
 import { runIntervalsSync } from "@/lib/intervals-sync";
 import { runStravaSync } from "@/lib/strava-sync";
 import { processPendingSyncJobs, pollAllUsersForNewActivities } from "@/lib/system-sync";
+import { RateLimitError } from "@/lib/intervals";
 
 const TICK_MS = 60_000;
-const POLL_INTERVAL_MS = 5 * 60_000; // 5 分钟轮询一次 ICU 新活动
+const POLL_INTERVAL_MS = 5 * 60_000;
 let started = false;
 let lastPollAt = 0;
+let rateLimitCooldownUntil = 0;
 
 export function startAutoPatrol() {
   if (started) return;
@@ -24,11 +31,22 @@ export function startAutoPatrol() {
 
   setTimeout(() => {
     setInterval(() => {
-      tick().catch(() => {});
+      tick().catch((err) => {
+        console.error("[auto-patrol] tick 异常:", err);
+      });
     }, TICK_MS);
   }, 30_000);
 
   console.log("[auto-patrol] 已启动, 每分钟消费队列 + 按间隔巡检");
+}
+
+function isRateLimited() {
+  return Date.now() < rateLimitCooldownUntil;
+}
+
+function setRateLimitCooldown(ms: number) {
+  rateLimitCooldownUntil = Date.now() + ms;
+  console.log(`[auto-patrol] API 限流，冷却 ${Math.ceil(ms / 1000)}s (至 ${new Date(rateLimitCooldownUntil).toISOString()})`);
 }
 
 async function tick() {
@@ -36,12 +54,21 @@ async function tick() {
     const config = await getAppConfig();
     if (!config.autoSyncEnabled) return;
 
-    // 1) 每次 tick 都消费待处理队列 — 不受同步间隔限制
-    await drainQueue();
-
-    // 2) 每 5 分钟轮询所有用户的 ICU 新活动（轻量 API 调用）
     const now = Date.now();
-    if (config.autoSyncIntervals && (!lastPollAt || now - lastPollAt >= POLL_INTERVAL_MS)) {
+    const lastRunAt = config.autoSyncLastRunAt ? new Date(config.autoSyncLastRunAt).getTime() : 0;
+    const intervalMs = (config.autoSyncIntervalHours || 1) * 60 * 60 * 1000;
+    const fullSyncDue = !lastRunAt || now - lastRunAt >= intervalMs;
+
+    // 限流冷却期内跳过所有 API 调用
+    if (isRateLimited()) return;
+
+    // fullSync 即将触发时跳过 drainQueue，保留 API 配额给全量同步
+    if (!fullSyncDue) {
+      await drainQueue();
+    }
+
+    // 每 5 分钟轮询所有用户的 ICU 新活动（轻量 API 调用）
+    if (!fullSyncDue && config.autoSyncIntervals && (!lastPollAt || now - lastPollAt >= POLL_INTERVAL_MS)) {
       lastPollAt = now;
       try {
         const pollResult = await pollAllUsersForNewActivities();
@@ -49,32 +76,44 @@ async function tick() {
           console.log(`[auto-patrol] 轮询发现 ${pollResult.totalNew} 条新活动，已入队`);
           await drainQueue();
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof RateLimitError) {
+          setRateLimitCooldown(err.retryAfterMs);
+          return;
+        }
         console.log("[auto-patrol] 轮询异常，跳过本轮");
       }
     }
 
-    // 3) 到同步间隔才发起新一轮全量增量同步
-    const lastRunAt = config.autoSyncLastRunAt ? new Date(config.autoSyncLastRunAt).getTime() : 0;
-    const intervalMs = (config.autoSyncIntervalHours || 1) * 60 * 60 * 1000;
-    if (lastRunAt && now - lastRunAt < intervalMs) return;
-
-    await runFullSync(config);
-  } catch {
+    if (fullSyncDue) {
+      await runFullSync(config);
+    }
+  } catch (err) {
+    console.error("[auto-patrol] tick 顶层异常:", err);
     try {
       await updateAppConfig({ autoSyncLastStatus: "巡检异常" });
     } catch {
-      // 静默
+      // DB 写入失败时静默
     }
   }
 }
 
 async function drainQueue() {
+  if (isRateLimited()) return;
+
   let total = 0;
   for (let round = 0; round < 10; round++) {
-    const batch = await processPendingSyncJobs(12);
-    total += batch.length;
-    if (batch.length < 12) break;
+    try {
+      const batch = await processPendingSyncJobs(12);
+      total += batch.length;
+      if (batch.length < 12) break;
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        setRateLimitCooldown(err.retryAfterMs);
+        break;
+      }
+      throw err;
+    }
   }
   if (total > 0) {
     console.log(`[auto-patrol] 本轮消费 ${total} 个队列任务`);
@@ -90,14 +129,24 @@ async function runFullSync(config: Awaited<ReturnType<typeof getAppConfig>>) {
   const users = await listUsers();
   let synced = 0;
   let errors = 0;
+  const errorDetails: string[] = [];
 
   for (const user of users) {
     if (config.autoSyncIntervals && user.intervalsApiKeyEncrypted) {
       try {
         await runIntervalsSync({ user, mode: "incremental" });
         synced++;
-      } catch {
+      } catch (err) {
         errors++;
+        const msg = `[intervals] ${user.name ?? user.email}: ${err instanceof Error ? err.message : String(err)}`;
+        errorDetails.push(msg);
+        console.error(`[auto-patrol] 同步失败 ${msg}`);
+
+        if (err instanceof RateLimitError) {
+          setRateLimitCooldown(err.retryAfterMs);
+          console.error(`[auto-patrol] 遇到 429 限流，终止本轮全量同步（已完成 ${synced}/${users.length}）`);
+          break;
+        }
       }
     }
 
@@ -105,16 +154,23 @@ async function runFullSync(config: Awaited<ReturnType<typeof getAppConfig>>) {
       try {
         await runStravaSync({ user, mode: "incremental", reason: "auto_patrol" });
         synced++;
-      } catch {
+      } catch (err) {
         errors++;
+        const msg = `[strava] ${user.name ?? user.email}: ${err instanceof Error ? err.message : String(err)}`;
+        errorDetails.push(msg);
+        console.error(`[auto-patrol] 同步失败 ${msg}`);
       }
     }
   }
 
-  // 同步后立即消费新入队的任务
-  await drainQueue();
+  // 同步后消费新入队的任务（如果没限流）
+  if (!isRateLimited()) {
+    await drainQueue();
+  }
 
-  await updateAppConfig({
-    autoSyncLastStatus: `完成: ${synced} 成功, ${errors} 失败 (${users.length} 用户)`,
-  });
+  const status = errors > 0
+    ? `完成: ${synced} 成功, ${errors} 失败 (${users.length} 用户) | ${errorDetails.slice(0, 3).join("; ")}`
+    : `完成: ${synced} 成功, 0 失败 (${users.length} 用户)`;
+
+  await updateAppConfig({ autoSyncLastStatus: status.slice(0, 500) });
 }

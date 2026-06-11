@@ -75,6 +75,9 @@ export async function processPendingSyncJobs(limit = 10) {
       const message = error instanceof Error ? error.message : "同步任务执行失败";
       await markSyncJobFailed(job.id, message);
       results.push({ jobId: job.id, source: job.source, status: "failed", error: message });
+
+      const { RateLimitError } = await import("@/lib/intervals");
+      if (error instanceof RateLimitError) throw error;
     }
   }
 

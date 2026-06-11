@@ -20,8 +20,8 @@ export default async function WellnessPage() {
     listActivitiesLightByUser(user.id),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayEntry = recent7.find((d) => d.date === today) ?? {
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(new Date());
+  const todayEntry = recent7.find((d) => d.date === today) ?? recent7[0] ?? {
     id: "",
     userId: user.id,
     date: today,

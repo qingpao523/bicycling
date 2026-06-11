@@ -48,6 +48,17 @@ function pickLatestNonNullNumber(entries: Record<string, unknown>[], keys: strin
   return undefined;
 }
 
+class RateLimitError extends Error {
+  retryAfterMs: number;
+  constructor(retryAfterMs: number) {
+    super(`intervals.icu 限流 (429)，${Math.ceil(retryAfterMs / 1000)}s 后可重试`);
+    this.name = "RateLimitError";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+export { RateLimitError };
+
 async function fetchJson(path: string, apiKey: string) {
   const response = await fetch(`${baseUrl}${path}`, {
     headers: {
@@ -56,6 +67,11 @@ async function fetchJson(path: string, apiKey: string) {
     },
     cache: "no-store",
   });
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("Retry-After") ?? "60", 10);
+    throw new RateLimitError(retryAfter * 1000);
+  }
 
   if (!response.ok) {
     throw new Error(`intervals.icu 同步失败：${response.status} ${response.statusText}`);
