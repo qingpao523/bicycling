@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { listActivitiesWithSummaryByUser } from "@/lib/storage";
+import { loadAnalyticsData, asActivities } from "@/lib/analytics-data";
 import { evaluateLevel } from "@/lib/engine/cycling-levels";
 import { generateUpgradePlan } from "@/lib/engine/level-progression";
 import { predictEta } from "@/lib/engine/level-eta";
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 
 export default async function LevelPage() {
   const user = await requireUser();
-  const activities = await listActivitiesWithSummaryByUser(user.id);
+  const { activities: normalizedActivities } = await loadAnalyticsData(user);
+  const activities = asActivities(normalizedActivities);
 
   // 数据不足引导
   if (activities.length < 5) {
