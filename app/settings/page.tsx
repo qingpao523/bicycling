@@ -531,6 +531,18 @@ export default async function SettingsPage({
           ) : null}
         </div>
       </section>
+
+      <section className="panel" style={{ marginTop: 32, padding: "20px 24px", display: "flex", justifyContent: "center" }}>
+        <form action="/api/auth/logout" method="post">
+          <button
+            type="submit"
+            className="button"
+            style={{ color: "#ef4444", borderColor: "#ef4444", minWidth: 200 }}
+          >
+            退出登录
+          </button>
+        </form>
+      </section>
     </main>
   );
 }
