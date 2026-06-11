@@ -71,10 +71,17 @@ export default async function WellnessPage() {
       statusTag: d.statusTag,
     }));
 
+  const latestDataDate = history180.find((d) => d.hrv != null || d.restingHr != null || d.sleepSecs != null)?.date;
+
   return (
     <div className="wellness-page">
       <div className="wellness-page-header">
-        <h1 className="wellness-page-title">个人状态</h1>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <h1 className="wellness-page-title">个人状态</h1>
+          {latestDataDate && (
+            <span className="wellness-latest-date">数据更新至 {latestDataDate}</span>
+          )}
+        </div>
         <StatusTagInput currentTag={todayEntry.statusTag} date={today} />
       </div>
 

@@ -167,8 +167,13 @@ export default async function AdminPage({
               <textarea name="maintenanceMessage" defaultValue={config.maintenanceMessage ?? ""} />
             </label>
             <label>
-              AI 系统提示词
+              AI 系统提示词（骑行报告）
               <textarea name="aiSystemPrompt" defaultValue={config.aiSystemPrompt ?? ""} />
+            </label>
+            <label>
+              AI 系统提示词（个人状态分析）
+              <textarea name="wellnessAiSystemPrompt" defaultValue={config.wellnessAiSystemPrompt ?? ""} placeholder="留空使用默认提示词" rows={6} />
+              <span className="muted">用于个人状态页面的 AI 分析报告。留空时使用内置默认提示词。</span>
             </label>
             <button type="submit" className="primary">
               保存系统配置

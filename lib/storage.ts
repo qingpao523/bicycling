@@ -44,6 +44,7 @@ function toAppConfig(record: {
   aiApiKeyEncrypted: string | null;
   aiModel: string | null;
   aiSystemPrompt: string | null;
+  wellnessAiSystemPrompt: string | null;
   developmentVersion: string;
   productionVersion: string;
   autoSyncEnabled: boolean;
@@ -69,6 +70,7 @@ function toAppConfig(record: {
     aiApiKeyEncrypted: record.aiApiKeyEncrypted ?? undefined,
     aiModel: record.aiModel ?? undefined,
     aiSystemPrompt: record.aiSystemPrompt ?? undefined,
+    wellnessAiSystemPrompt: record.wellnessAiSystemPrompt ?? undefined,
     developmentVersion: record.developmentVersion,
     productionVersion: record.productionVersion,
     autoSyncEnabled: record.autoSyncEnabled,
@@ -760,6 +762,7 @@ export async function updateAppConfig(patch: Partial<AppConfig>) {
       aiApiKeyEncrypted: patch.aiApiKeyEncrypted,
       aiModel: patch.aiModel,
       aiSystemPrompt: patch.aiSystemPrompt,
+      wellnessAiSystemPrompt: patch.wellnessAiSystemPrompt,
       developmentVersion: patch.developmentVersion,
       productionVersion: patch.productionVersion,
       autoSyncEnabled: patch.autoSyncEnabled,

@@ -1,11 +1,15 @@
 import { requireUser } from "@/lib/auth";
-import { listDailyWellness, listActivitiesByUser, getAppConfig, createId } from "@/lib/storage";
+import { listDailyWellness, listActivitiesLightByUser, getAppConfig, createId } from "@/lib/storage";
 import { computeReadiness } from "@/lib/engine/readiness-engine";
 import { calculatePmc, getCurrentPmc } from "@/lib/engine/pmc";
 import { normalizeAiBaseUrl } from "@/lib/ai-provider";
 import { decryptSecret } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { WELLNESS_SYSTEM_PROMPT, buildWellnessContext, buildWellnessUserPrompt } from "@/lib/wellness-ai";
+
+function getWellnessPrompt(config: { wellnessAiSystemPrompt?: string | null }) {
+  return config.wellnessAiSystemPrompt?.trim() || WELLNESS_SYSTEM_PROMPT;
+}
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -28,7 +32,7 @@ export async function POST() {
         const [recent7, baseline30, activities] = await Promise.all([
           listDailyWellness(user.id, 7),
           listDailyWellness(user.id, 30),
-          listActivitiesByUser(user.id),
+          listActivitiesLightByUser(user.id),
         ]);
 
         const today = new Date().toISOString().slice(0, 10);
@@ -53,7 +57,7 @@ export async function POST() {
         const payload = {
           model: config.aiModel,
           messages: [
-            { role: "system", content: WELLNESS_SYSTEM_PROMPT },
+            { role: "system", content: getWellnessPrompt(config) },
             { role: "user", content: buildWellnessUserPrompt(context) },
           ],
           response_format: { type: "json_object" },

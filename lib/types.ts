@@ -74,6 +74,7 @@ export interface AppConfig {
   aiApiKeyEncrypted?: string;
   aiModel?: string;
   aiSystemPrompt?: string;
+  wellnessAiSystemPrompt?: string;
   developmentVersion: string;
   productionVersion: string;
   autoSyncEnabled: boolean;

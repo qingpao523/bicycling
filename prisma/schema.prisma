@@ -22,6 +22,7 @@ model AppConfig {
   aiApiKeyEncrypted     String?
   aiModel               String?
   aiSystemPrompt        String?
+  wellnessAiSystemPrompt String?
   developmentVersion    String    @default("0.1.1-dev")
   productionVersion     String    @default("0.1.0")
   autoSyncEnabled       Boolean   @default(false)

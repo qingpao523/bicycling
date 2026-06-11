@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       aiBaseUrl: String(formData.get("aiBaseUrl") ?? ""),
       aiModel: String(formData.get("aiModel") ?? ""),
       aiSystemPrompt: String(formData.get("aiSystemPrompt") ?? ""),
+      wellnessAiSystemPrompt: String(formData.get("wellnessAiSystemPrompt") ?? ""),
       developmentVersion: String(formData.get("developmentVersion") ?? "0.1.1-dev"),
       autoSyncEnabled: boolValue(formData.get("autoSyncEnabled")),
       autoSyncIntervalHours: Number(formData.get("autoSyncIntervalHours") ?? 6),
