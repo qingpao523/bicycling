@@ -135,6 +135,28 @@ export function SciencePanel() {
           </section>
 
           <section>
+            <h4>VI. 训练负荷评分逻辑</h4>
+            <p>
+              基于 ACWR（急慢性负荷比 = ATL / CTL）计算训练负荷评分：
+            </p>
+            <table className="science-table">
+              <thead>
+                <tr><th>ACWR 范围</th><th>评分区间</th><th>说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td className="science-highlight">0.8 – 1.3</td><td className="science-highlight">85 – 100</td><td className="science-highlight">甜区，越接近 1.05 越高分</td></tr>
+                <tr><td>&lt; 0.8</td><td>30 – 80</td><td>训练不足 / 停训风险</td></tr>
+                <tr><td>1.3 – 1.5</td><td>55 – 85</td><td>负荷偏高</td></tr>
+                <tr><td>&gt; 1.5</td><td>0 – 55</td><td>高风险区，受伤概率显著上升</td></tr>
+              </tbody>
+            </table>
+            <p>
+              <strong>额外修正</strong>：TSB &lt; -30 时额外扣 15 分（深度疲劳）；
+              CTL &lt; 5 时 ACWR 不可靠，改用 TSB 兜底评分（TSB ≥ 0 给 60 分，否则按 TSB 线性衰减）。
+            </p>
+          </section>
+
+          <section>
             <h4>参考文献</h4>
             <ol className="science-references">
               <li>Banister EW. (1991). Modeling Elite Athletic Performance. In: <em>Physiological Testing of Elite Athletes</em>. Human Kinetics, pp. 403-424.</li>
