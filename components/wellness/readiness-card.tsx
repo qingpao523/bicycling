@@ -55,21 +55,28 @@ export function ReadinessCard({ score, label, color, factors, chartData }: Readi
       </div>
 
       <div className="readiness-factors">
-        {factors.map((f) => (
-          <div key={f.name} className="readiness-factor">
-            <div className="readiness-factor-header">
-              <span className="readiness-factor-name">{f.name}</span>
-              <span className="readiness-factor-score">{f.score}</span>
+        {factors.map((f) => {
+          const factorColor =
+            f.score >= 85 ? "#22c55e" :
+            f.score >= 65 ? "#84cc16" :
+            f.score >= 45 ? "#eab308" :
+            f.score >= 25 ? "#f97316" : "#ef4444";
+          return (
+            <div key={f.name} className="readiness-factor">
+              <div className="readiness-factor-header">
+                <span className="readiness-factor-name">{f.name}</span>
+                <span className="readiness-factor-score" style={{ color: factorColor }}>{f.score}</span>
+              </div>
+              <div className="readiness-factor-bar">
+                <div
+                  className="readiness-factor-fill"
+                  style={{ width: `${f.score}%`, backgroundColor: factorColor }}
+                />
+              </div>
+              <span className="readiness-factor-detail">{f.detail}</span>
             </div>
-            <div className="readiness-factor-bar">
-              <div
-                className="readiness-factor-fill"
-                style={{ width: `${f.score}%`, backgroundColor: color }}
-              />
-            </div>
-            <span className="readiness-factor-detail">{f.detail}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

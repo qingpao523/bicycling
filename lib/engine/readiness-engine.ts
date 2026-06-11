@@ -194,18 +194,21 @@ function computeLoadScore(ctl?: number, atl?: number, tsb?: number): ReadinessFa
   let score: number;
   if (ctl === 0 && atl === 0) {
     score = 50;
+  } else if (ctl < 5) {
+    // CTL 太低时 ACWR 不可靠，用 TSB 兜底
+    score = tsb >= 0 ? 60 : clamp(60 + tsb * 2, 20, 60);
   } else if (acwr >= 0.8 && acwr <= 1.3) {
-    // Sweet spot
-    score = 85 + (1 - Math.abs(acwr - 1.05) / 0.25) * 15;
+    // 甜区: 越接近 1.0 越高分
+    score = 85 + clamp((1 - Math.abs(acwr - 1.05) / 0.25) * 15, 0, 15);
   } else if (acwr < 0.8) {
-    // Under-training
-    score = 60 + acwr * 25;
+    // 偏低: 停训风险
+    score = clamp(60 + acwr * 25, 30, 80);
   } else if (acwr <= 1.5) {
-    // Elevated risk
-    score = 85 - (acwr - 1.3) * 150;
+    // 偏高
+    score = clamp(85 - (acwr - 1.3) * 150, 55, 85);
   } else {
-    // High risk
-    score = Math.max(0, 55 - (acwr - 1.5) * 100);
+    // 高风险
+    score = clamp(55 - (acwr - 1.5) * 100, 0, 55);
   }
 
   // TSB extreme penalty
