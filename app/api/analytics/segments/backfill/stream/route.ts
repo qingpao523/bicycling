@@ -1,13 +1,12 @@
 import { requireUser } from "@/lib/auth";
 import { listActivitiesByUser, listAllSegmentEffortsByUser } from "@/lib/storage";
 import { handleSegmentFetchJob } from "@/lib/strava-sync";
-import { StravaRateLimitError } from "@/lib/strava";
+import { StravaRateLimitError, getStravaDelayMs } from "@/lib/strava";
 import type { User } from "@/lib/types";
 
 export const maxDuration = 600;
 export const dynamic = "force-dynamic";
 
-const STRAVA_DELAY_MS = 10_000; // 100 req/15min ≈ 9s per request
 const ICU_DELAY_MS = 1_000;
 
 export async function POST(request: Request) {
@@ -112,10 +111,11 @@ export async function POST(request: Request) {
           progress.processed++;
           send({ type: "progress", progress });
 
-          // 根据活动来源选择延迟：Strava API 严格限流
+          // 动态延迟：Strava 根据 X-RateLimit-Usage 自适应，ICU 固定 1s
           const isStravaRoute = act.externalActivityId.startsWith("strava:") ||
             (!act.externalActivityId.startsWith("i") && user.stravaAccessTokenEncrypted);
-          await new Promise((r) => setTimeout(r, isStravaRoute ? STRAVA_DELAY_MS : ICU_DELAY_MS));
+          const delayMs = isStravaRoute ? getStravaDelayMs() : ICU_DELAY_MS;
+          await new Promise((r) => setTimeout(r, delayMs));
         }
 
         progress.currentActivity = undefined;

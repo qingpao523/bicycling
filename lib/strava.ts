@@ -308,6 +308,8 @@ export async function fetchStravaActivityDetail(activityId: string, accessToken:
     cache: "no-store",
   });
 
+  updateStravaRateState(response.headers);
+
   if (response.status === 429) {
     const retryAfter = parseInt(response.headers.get("retry-after") ?? "60", 10);
     throw new StravaRateLimitError(retryAfter);
@@ -331,6 +333,26 @@ export class StravaRateLimitError extends Error {
   }
 }
 
+// Strava 响应头: X-RateLimit-Limit: "100,1000"  X-RateLimit-Usage: "34,500"
+//                                     15min,day                     15min,day
+const stravaRateState = { usage15: 0, limit15: 100, lastUpdate: 0 };
+
+export function updateStravaRateState(headers: Headers) {
+  const usage = headers.get("x-ratelimit-usage");
+  const limit = headers.get("x-ratelimit-limit");
+  if (usage) stravaRateState.usage15 = parseInt(usage.split(",")[0], 10) || 0;
+  if (limit) stravaRateState.limit15 = parseInt(limit.split(",")[0], 10) || 100;
+  stravaRateState.lastUpdate = Date.now();
+}
+
+export function getStravaDelayMs(): number {
+  const remaining = stravaRateState.limit15 - stravaRateState.usage15;
+  if (remaining <= 5) return 60_000;  // 快到限额，等 1 分钟
+  if (remaining <= 20) return 10_000; // 余量不多，10s
+  if (remaining <= 50) return 3_000;  // 中等余量，3s
+  return 1_000;                       // 余量充足，1s
+}
+
 export async function fetchStravaActivityStreams(activityId: string, accessToken: string) {
   const normalizedActivityId = activityId.startsWith("strava:") ? activityId.slice("strava:".length) : activityId;
   const url = new URL(`${STRAVA_API_BASE_URL}/activities/${normalizedActivityId}/streams`);
@@ -344,6 +366,13 @@ export async function fetchStravaActivityStreams(activityId: string, accessToken
     },
     cache: "no-store",
   });
+
+  updateStravaRateState(response.headers);
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("retry-after") ?? "60", 10);
+    throw new StravaRateLimitError(retryAfter);
+  }
 
   if (!response.ok) {
     const text = await response.text();
