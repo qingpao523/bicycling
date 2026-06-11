@@ -11,10 +11,12 @@
 import { getAppConfig, listUsers, updateAppConfig } from "@/lib/storage";
 import { runIntervalsSync } from "@/lib/intervals-sync";
 import { runStravaSync } from "@/lib/strava-sync";
-import { processPendingSyncJobs } from "@/lib/system-sync";
+import { processPendingSyncJobs, pollAllUsersForNewActivities } from "@/lib/system-sync";
 
 const TICK_MS = 60_000;
+const POLL_INTERVAL_MS = 5 * 60_000; // 5 分钟轮询一次 ICU 新活动
 let started = false;
+let lastPollAt = 0;
 
 export function startAutoPatrol() {
   if (started) return;
@@ -37,8 +39,22 @@ async function tick() {
     // 1) 每次 tick 都消费待处理队列 — 不受同步间隔限制
     await drainQueue();
 
-    // 2) 到同步间隔才发起新一轮增量同步
+    // 2) 每 5 分钟轮询所有用户的 ICU 新活动（轻量 API 调用）
     const now = Date.now();
+    if (config.autoSyncIntervals && (!lastPollAt || now - lastPollAt >= POLL_INTERVAL_MS)) {
+      lastPollAt = now;
+      try {
+        const pollResult = await pollAllUsersForNewActivities();
+        if (pollResult.totalNew > 0) {
+          console.log(`[auto-patrol] 轮询发现 ${pollResult.totalNew} 条新活动，已入队`);
+          await drainQueue();
+        }
+      } catch {
+        console.log("[auto-patrol] 轮询异常，跳过本轮");
+      }
+    }
+
+    // 3) 到同步间隔才发起新一轮全量增量同步
     const lastRunAt = config.autoSyncLastRunAt ? new Date(config.autoSyncLastRunAt).getTime() : 0;
     const intervalMs = (config.autoSyncIntervalHours || 1) * 60 * 60 * 1000;
     if (lastRunAt && now - lastRunAt < intervalMs) return;

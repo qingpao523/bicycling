@@ -149,10 +149,12 @@ export async function pollUserForNewActivities(user: User): Promise<{ newActivit
   }
 
   const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
 
   const response = await fetch(
-    `${ICU_BASE_URL}/athlete/${user.intervalsAthleteId}/activities?oldest=${today}&newest=${today}`,
+    `${ICU_BASE_URL}/athlete/${user.intervalsAthleteId}/activities?oldest=${yesterday}&newest=${today}`,
     {
       headers: { Authorization: icuBasicAuth(apiKey), Accept: "application/json" },
       cache: "no-store",
@@ -190,8 +192,8 @@ export async function pollUserForNewActivities(user: User): Promise<{ newActivit
       source: "intervals.icu",
       jobType: "sync",
       reason: "poll_detected",
-      externalRef: `poll:${user.id}:${today}`,
-      payload: { mode: "incremental", oldest: today, detectedNewIds: newIds },
+      externalRef: `poll:${user.id}:${today}:${newIds.length}`,
+      payload: { mode: "incremental", oldest: yesterday, detectedNewIds: newIds },
     });
   }
 
