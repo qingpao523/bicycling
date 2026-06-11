@@ -146,15 +146,15 @@ function icuBasicAuth(apiKey: string) {
   return `Basic ${Buffer.from(`API_KEY:${apiKey}`).toString("base64")}`;
 }
 
-export async function pollUserForNewActivities(user: User): Promise<{ newActivities: number; totalChecked: number; enqueued: boolean }> {
+export async function pollUserForNewActivities(user: User): Promise<{ newActivities: number; totalChecked: number; enqueued: boolean; wellnessSynced: number }> {
   if (!user.intervalsApiKeyEncrypted || !user.intervalsAthleteId) {
-    return { newActivities: 0, totalChecked: 0, enqueued: false };
+    return { newActivities: 0, totalChecked: 0, enqueued: false, wellnessSynced: 0 };
   }
 
   const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const today = now.toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(now);
 
   const response = await fetch(
     `${ICU_BASE_URL}/athlete/${user.intervalsAthleteId}/activities?oldest=${yesterday}&newest=${today}`,
@@ -164,6 +164,12 @@ export async function pollUserForNewActivities(user: User): Promise<{ newActivit
     },
   );
 
+  if (response.status === 429) {
+    const { RateLimitError } = await import("@/lib/intervals");
+    const retryAfter = parseInt(response.headers.get("Retry-After") ?? "60", 10);
+    throw new RateLimitError(retryAfter * 1000);
+  }
+
   if (!response.ok) {
     throw new Error(`ICU API ${response.status} for athlete ${user.intervalsAthleteId}`);
   }
@@ -171,59 +177,85 @@ export async function pollUserForNewActivities(user: User): Promise<{ newActivit
   const icuActivities = (await response.json()) as Record<string, unknown>[];
   const icuIds = icuActivities.map((a) => String(a.id ?? "")).filter(Boolean);
 
-  if (icuIds.length === 0) {
-    return { newActivities: 0, totalChecked: 0, enqueued: false };
-  }
+  let newActivities = 0;
+  let enqueued = false;
 
-  const existing = await prisma.activity.findMany({
-    where: { userId: user.id, externalActivityId: { in: icuIds } },
-    select: { externalActivityId: true },
-  });
-  const existingSet = new Set(existing.map((a) => a.externalActivityId));
-
-  const aliases = await prisma.activityAlias.findMany({
-    where: { userId: user.id, source: "intervals.icu", externalActivityId: { in: icuIds } },
-    select: { externalActivityId: true },
-  });
-  for (const a of aliases) existingSet.add(a.externalActivityId);
-
-  const newIds = icuIds.filter((id) => !existingSet.has(id));
-
-  if (newIds.length > 0) {
-    await enqueueSyncJob({
-      userId: user.id,
-      source: "intervals.icu",
-      jobType: "sync",
-      reason: "poll_detected",
-      externalRef: `poll:${user.id}:${today}:${newIds.length}`,
-      payload: { mode: "incremental", oldest: yesterday, detectedNewIds: newIds },
+  if (icuIds.length > 0) {
+    const existing = await prisma.activity.findMany({
+      where: { userId: user.id, externalActivityId: { in: icuIds } },
+      select: { externalActivityId: true },
     });
+    const existingSet = new Set(existing.map((a) => a.externalActivityId));
+
+    const aliases = await prisma.activityAlias.findMany({
+      where: { userId: user.id, source: "intervals.icu", externalActivityId: { in: icuIds } },
+      select: { externalActivityId: true },
+    });
+    for (const a of aliases) existingSet.add(a.externalActivityId);
+
+    const newIds = icuIds.filter((id) => !existingSet.has(id));
+    newActivities = newIds.length;
+
+    if (newIds.length > 0) {
+      await enqueueSyncJob({
+        userId: user.id,
+        source: "intervals.icu",
+        jobType: "sync",
+        reason: "poll_detected",
+        externalRef: `poll:${user.id}:${today}:${newIds.length}`,
+        payload: { mode: "incremental", oldest: yesterday, detectedNewIds: newIds },
+      });
+      enqueued = true;
+    }
   }
 
-  return { newActivities: newIds.length, totalChecked: icuIds.length, enqueued: newIds.length > 0 };
+  // Wellness: 先查 DB 最新日期，落后了才调 API
+  let wellnessSynced = 0;
+  const latestWellness = await prisma.dailyWellness.findFirst({
+    where: { userId: user.id },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+
+  if (!latestWellness || latestWellness.date < today) {
+    const { fetchIntervalsWellness } = await import("@/lib/intervals");
+    const { syncWellnessData } = await import("@/lib/intervals-sync");
+    const gapDays = latestWellness ? Math.min(7, Math.ceil((now.getTime() - new Date(latestWellness.date).getTime()) / 86400000) + 1) : 7;
+    const rawWellness = await fetchIntervalsWellness({ athleteId: user.intervalsAthleteId, apiKey, days: gapDays });
+    wellnessSynced = await syncWellnessData(user.id, rawWellness);
+  }
+
+  return { newActivities, totalChecked: icuIds.length, enqueued, wellnessSynced };
 }
 
 export async function pollAllUsersForNewActivities() {
   const allUsers = await listUsers();
   const icuUsers = allUsers.filter((u) => u.intervalsApiKeyEncrypted && u.intervalsAthleteId);
-  const results: Array<{ userId: string; newActivities: number; error?: string }> = [];
+  const results: Array<{ userId: string; newActivities: number; wellnessSynced: number; error?: string }> = [];
 
   for (const user of icuUsers) {
     try {
       const r = await pollUserForNewActivities(user);
-      results.push({ userId: user.id, newActivities: r.newActivities });
+      results.push({ userId: user.id, newActivities: r.newActivities, wellnessSynced: r.wellnessSynced });
     } catch (e) {
-      results.push({ userId: user.id, newActivities: 0, error: e instanceof Error ? e.message : String(e) });
+      const { RateLimitError } = await import("@/lib/intervals");
+      if (e instanceof RateLimitError) throw e;
+      results.push({ userId: user.id, newActivities: 0, wellnessSynced: 0, error: e instanceof Error ? e.message : String(e) });
     }
   }
 
   const totalNew = results.reduce((s, r) => s + r.newActivities, 0);
+  const totalWellness = results.reduce((s, r) => s + r.wellnessSynced, 0);
 
   if (totalNew > 0) {
     await processPendingSyncJobs(totalNew + 5);
   }
 
-  return { usersPolled: icuUsers.length, results, totalNew };
+  if (totalWellness > 0) {
+    console.log(`[poll] wellness 增量同步: ${totalWellness} 条新数据`);
+  }
+
+  return { usersPolled: icuUsers.length, results, totalNew, totalWellness };
 }
 
 async function enqueueMissingStreamBackfills(user: User, limit: number): Promise<{ enqueued: number; scanned: number }> {
