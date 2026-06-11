@@ -17,8 +17,11 @@ export interface WellnessHistoryPoint {
   hrv: number | null;
   restingHr: number | null;
   sleepHours: number | null;
-  sleepHoursScaled: number | null;
   readinessScore: number | null;
+  hrvScore: number | null;
+  rhrScore: number | null;
+  sleepScore: number | null;
+  loadScore: number | null;
   statusTag: string | null;
 }
 
@@ -48,7 +51,10 @@ function CustomTooltip({ active, payload, tab }: any) {
       ) : (
         <>
           {d.readinessScore != null && <div style={{ color: "#22c55e" }}>综合评分: {d.readinessScore}</div>}
-          {d.sleepHoursScaled != null && <div style={{ color: "#3b82f6" }}>睡眠评分: {d.sleepHoursScaled}</div>}
+          {d.hrvScore != null && <div style={{ color: "#8b5cf6" }}>HRV: {d.hrvScore}</div>}
+          {d.rhrScore != null && <div style={{ color: "#ef4444" }}>静息心率: {d.rhrScore}</div>}
+          {d.sleepScore != null && <div style={{ color: "#3b82f6" }}>睡眠: {d.sleepScore}</div>}
+          {d.loadScore != null && <div style={{ color: "#f59e0b" }}>训练负荷: {d.loadScore}</div>}
         </>
       )}
       {d.statusTag && (
@@ -198,13 +204,39 @@ export function WellnessHistoryChart({ data }: { data: WellnessHistoryPoint[] })
               />
               <Line
                 type="monotone"
-                dataKey="sleepHoursScaled"
+                dataKey="hrvScore"
+                stroke="#8b5cf6"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+                name="HRV"
+              />
+              <Line
+                type="monotone"
+                dataKey="rhrScore"
+                stroke="#ef4444"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+                name="静息心率"
+              />
+              <Line
+                type="monotone"
+                dataKey="sleepScore"
                 stroke="#3b82f6"
                 strokeWidth={1.5}
                 dot={false}
                 connectNulls
-                strokeDasharray="4 2"
-                name="睡眠评分"
+                name="睡眠"
+              />
+              <Line
+                type="monotone"
+                dataKey="loadScore"
+                stroke="#f59e0b"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+                name="训练负荷"
               />
             </ComposedChart>
           )}
@@ -221,7 +253,10 @@ export function WellnessHistoryChart({ data }: { data: WellnessHistoryPoint[] })
         ) : (
           <>
             <span><i style={{ background: "#22c55e" }} />综合评分</span>
-            <span><i style={{ background: "#3b82f6" }} />睡眠评分</span>
+            <span><i style={{ background: "#8b5cf6" }} />HRV</span>
+            <span><i style={{ background: "#ef4444" }} />静息心率</span>
+            <span><i style={{ background: "#3b82f6" }} />睡眠</span>
+            <span><i style={{ background: "#f59e0b" }} />训练负荷</span>
           </>
         )}
       </div>

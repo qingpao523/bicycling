@@ -58,18 +58,28 @@ export default async function WellnessPage() {
       sleepScore: d.sleepScore,
     }));
 
-  const historyData = history180
-    .slice()
-    .reverse()
-    .map((d) => ({
+  const pmcByDate = new Map(pmcData.map((p) => [p.date, p]));
+  const historyChronological = history180.slice().reverse();
+
+  const historyData = historyChronological.map((d, i) => {
+    const r7 = historyChronological.slice(Math.max(0, i - 6), i + 1);
+    const b30 = historyChronological.slice(Math.max(0, i - 29), i + 1);
+    const pmc = pmcByDate.get(d.date);
+    const dayReadiness = computeReadiness(d, r7, b30, pmc?.tsb, pmc?.ctl, pmc?.atl);
+
+    return {
       date: d.date,
       hrv: d.hrv,
       restingHr: d.restingHr,
       sleepHours: d.sleepSecs != null ? Math.round((d.sleepSecs / 3600) * 10) / 10 : null,
-      sleepHoursScaled: d.sleepSecs != null ? Math.min(100, Math.round(((d.sleepSecs / 3600) / 8) * 100)) : null,
-      readinessScore: d.readinessScore,
+      readinessScore: dayReadiness.score,
+      hrvScore: dayReadiness.factors[0]?.score ?? null,
+      rhrScore: dayReadiness.factors[1]?.score ?? null,
+      sleepScore: dayReadiness.factors[2]?.score ?? null,
+      loadScore: dayReadiness.factors[3]?.score ?? null,
       statusTag: d.statusTag,
-    }));
+    };
+  });
 
   const latestDataDate = history180.find((d) => d.hrv != null || d.restingHr != null || d.sleepSecs != null)?.date;
 
