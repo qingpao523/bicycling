@@ -35,9 +35,11 @@ export default async function LevelPage() {
     );
   }
 
-  // 双调: 近 90 天 (主) + 全历史 (淡层对比)
-  const evaluation = evaluateLevel({ activities, user, scope: "recent", windowDays: 90 });
-  const historical = evaluateLevel({ activities, user, scope: "historical" });
+  // 全历史为主视角 (与功率曲线页保持同一数据口径)
+  // recent 90 天仅用于对比层 "近期趋势"
+  const evaluation = evaluateLevel({ activities, user, scope: "historical" });
+  const recent = evaluateLevel({ activities, user, scope: "recent", windowDays: 90 });
+
   const upgradePlan = generateUpgradePlan(evaluation);
   const pmcSeries = calculatePmc(activities);
   const eta = predictEta(evaluation, pmcSeries);
@@ -50,7 +52,7 @@ export default async function LevelPage() {
       <header>
         <h1 style={{ margin: 0 }}>🚴 能力水位</h1>
         <p style={{ color: "var(--muted)", margin: "4px 0 0" }}>
-          近 90 天 ({evaluation.dataWindow.activityCount} 条) vs 全历史 ({historical.dataWindow.activityCount} 条) · 最强项法
+          全历史 ({evaluation.dataWindow.activityCount} 条) · 近 90 天 ({recent.dataWindow.activityCount} 条对比) · 最强项法
         </p>
       </header>
 
@@ -61,15 +63,15 @@ export default async function LevelPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <LevelRadar evaluation={evaluation} historical={historical} />
-        <LevelProgress evaluation={evaluation} historical={historical} />
+        <LevelRadar evaluation={evaluation} recent={recent} />
+        <LevelProgress evaluation={evaluation} recent={recent} />
       </div>
 
       <UpgradePathCard plan={upgradePlan} />
 
       <EtaPredictionCard eta={eta} nextLabel={ftpNextLabel} />
 
-      <LevelStandardTable evaluation={evaluation} historical={historical} />
+      <LevelStandardTable evaluation={evaluation} recent={recent} />
 
       <div style={{ textAlign: "center", padding: 12 }}>
         <Link href="/analytics#pmc-chart" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.88rem" }}>

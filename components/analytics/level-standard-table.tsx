@@ -15,10 +15,10 @@ import {
 
 type Props = {
   evaluation: LevelEvaluation;
-  historical?: LevelEvaluation | null;
+  recent?: LevelEvaluation | null;
 };
 
-export function LevelStandardTable({ evaluation, historical }: Props) {
+export function LevelStandardTable({ evaluation, recent }: Props) {
   const [open, setOpen] = useState(true); // 默认展开
 
   return (
@@ -50,7 +50,7 @@ export function LevelStandardTable({ evaluation, historical }: Props) {
           <p style={{ fontSize: "0.88rem", color: "var(--muted)", marginBottom: 16 }}>
             本系统基于 <strong>Coggan 功率训练分级</strong> + 中文骑友圈段位命名,
             采用 <strong>最强项法</strong> 评定综合段位 — 你的最强维度代表当前水位 (业余车手往往专精某项, 不可能全面 max)。
-            {historical && " 表中实色高亮 = 近 90 天所在格, 虚线边框 = 历史最佳所在格。"}
+            {recent && " 表中实色高亮 = 全历史最佳所在格, 虚线边框 = 近 90 天所在格。"}
           </p>
 
           {/* 12×6 阈值表 */}
@@ -79,7 +79,7 @@ export function LevelStandardTable({ evaluation, historical }: Props) {
               <tbody>
                 {DIMENSIONS.map((dim) => {
                   const currentLevel = evaluation.byDimension[dim].level;
-                  const histLevel = historical?.byDimension[dim].level ?? null;
+                  const histLevel = recent?.byDimension[dim].level ?? null;
                   return (
                     <tr key={dim}>
                       <td style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
@@ -125,9 +125,9 @@ export function LevelStandardTable({ evaluation, historical }: Props) {
                                   borderRadius: 3,
                                   fontWeight: 700,
                                 }}
-                                title={`历史最佳: ${historical!.byDimension[dim].value?.toFixed(2) ?? "?"} ${DIMENSION_META[dim].unit}`}
+                                title={`近 90 天: ${recent!.byDimension[dim].value?.toFixed(2) ?? "?"} ${DIMENSION_META[dim].unit}`}
                               >
-                                史
+                                近
                               </div>
                             )}
                           </td>
@@ -139,8 +139,8 @@ export function LevelStandardTable({ evaluation, historical }: Props) {
               </tbody>
             </table>
             <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 8 }}>
-              ⬛ 实色高亮 = 近 90 天所在格 (颜色与左侧徽章一致)
-              {historical && " · ⬜ 虚线边框 + 「史」标 = 历史最佳所在格 (与近期相同则不重复标记)"}
+              ⬛ 实色高亮 = 全历史最佳所在格
+              {recent && " · ⬜ 虚线边框 + 「近」标 = 近 90 天所在格 (与全历史相同则不重复标记)"}
             </p>
           </div>
 

@@ -13,36 +13,28 @@ import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
 import { DIMENSIONS, DIMENSION_META, LEVEL_COLOR_BUCKET, LEVEL_BG } from "@/lib/engine/cycling-levels";
 
 type Props = {
-  evaluation: LevelEvaluation;             // 主层: 近 90 天
-  historical?: LevelEvaluation | null;     // 历史层: 全历史 (可选)
+  evaluation: LevelEvaluation;             // 主层: 全历史 (与功率曲线同口径)
+  recent?: LevelEvaluation | null;         // 对比层: 近 90 天 (可选)
 };
 
-// 历史层固定用对比色 (深紫), 跟主层的段位色阶形成强对比
-// 避免历史 vs 近期都用同一个段位色 → 用户看不出差异
-const HISTORICAL_STROKE = "#7c3aed";  // 紫
-const HISTORICAL_FILL = "#a78bfa";    // 浅紫
+const COMPARE_STROKE = "#7c3aed";  // 紫
+const COMPARE_FILL = "#a78bfa";    // 浅紫
 
-export function LevelRadar({ evaluation, historical }: Props) {
+export function LevelRadar({ evaluation, recent }: Props) {
   const radarData = DIMENSIONS.map((dim) => ({
     dimension: DIMENSION_META[dim].label,
-    recent: evaluation.byDimension[dim].level ?? 0,
-    historical: historical?.byDimension[dim].level ?? 0,
+    allTime: evaluation.byDimension[dim].level ?? 0,
+    recent: recent?.byDimension[dim].level ?? 0,
     fullMark: 11,
   }));
 
   const overallColor = LEVEL_BG[LEVEL_COLOR_BUCKET(evaluation.overall.level)];
-  const histColor = historical
-    ? LEVEL_BG[LEVEL_COLOR_BUCKET(historical.overall.level)]
-    : "#94a3b8";
 
-  // 关键: 动态计算雷达图的 max domain
-  // 旧版固定 [0, 11] 显得用户都很差 (大部分用户最高 L6 中PRO 毕业)
-  // 新版: max = max(recent, historical) + 2 余裕, 至少 6 (留 L0-L5 空间), 上限 11
   const maxObservedLevel = Math.max(
     evaluation.overall.level,
-    historical?.overall.level ?? 0,
+    recent?.overall.level ?? 0,
     ...DIMENSIONS.map((d) => evaluation.byDimension[d].level ?? 0),
-    ...(historical ? DIMENSIONS.map((d) => historical.byDimension[d].level ?? 0) : []),
+    ...(recent ? DIMENSIONS.map((d) => recent.byDimension[d].level ?? 0) : []),
   );
   const radarMax = Math.min(11, Math.max(6, maxObservedLevel + 2));
 
@@ -51,7 +43,7 @@ export function LevelRadar({ evaluation, historical }: Props) {
       <div className="analytics-card-header">
         <h2>能力水位雷达</h2>
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-          最强项法 · {historical ? "近 90 天 vs 全历史最佳" : "近 90 天最佳"} · 域 0-{radarMax}
+          最强项法 · {recent ? "全历史最佳 vs 近 90 天" : "全历史最佳"} · 域 0-{radarMax}
         </span>
       </div>
 
@@ -66,13 +58,13 @@ export function LevelRadar({ evaluation, historical }: Props) {
               tick={{ fontSize: 9, fill: "#999" }}
             />
 
-            {/* 历史层: 紫色对比色, 实线但适度透明, 显著可见 */}
-            {historical && (
+            {/* 近 90 天对比层: 紫色虚线 */}
+            {recent && (
               <Radar
-                name="全历史最佳"
-                dataKey="historical"
-                stroke={HISTORICAL_STROKE}
-                fill={HISTORICAL_FILL}
+                name="近 90 天"
+                dataKey="recent"
+                stroke={COMPARE_STROKE}
+                fill={COMPARE_FILL}
                 fillOpacity={0.22}
                 strokeOpacity={0.85}
                 strokeWidth={2}
@@ -80,10 +72,10 @@ export function LevelRadar({ evaluation, historical }: Props) {
               />
             )}
 
-            {/* 主层: 段位色, 实线粗 */}
+            {/* 主层: 全历史, 段位色实线 */}
             <Radar
-              name="近 90 天"
-              dataKey="recent"
+              name="全历史最佳"
+              dataKey="allTime"
               stroke={overallColor}
               fill={overallColor}
               fillOpacity={0.45}
@@ -93,43 +85,43 @@ export function LevelRadar({ evaluation, historical }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* 段位徽章 — 放在雷达下方 */}
+      {/* 段位徽章 */}
       <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
-        <BadgeChip color={overallColor} label="近 90 天" level={evaluation.overall.level} text={evaluation.overall.label} />
-        {historical && (
+        <BadgeChip color={overallColor} label="全历史最佳" level={evaluation.overall.level} text={evaluation.overall.label} />
+        {recent && (
           <BadgeChip
-            color={HISTORICAL_STROKE}
+            color={COMPARE_STROKE}
             label={
-              historical.overall.level === evaluation.overall.level
-                ? "历史最佳 (=近期)"
-                : "历史最佳"
+              recent.overall.level === evaluation.overall.level
+                ? "近 90 天 (=全历史)"
+                : "近 90 天"
             }
-            level={historical.overall.level}
-            text={historical.overall.label}
+            level={recent.overall.level}
+            text={recent.overall.label}
             outline
           />
         )}
       </div>
 
-      {historical && (
+      {recent && (
         <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 10, fontSize: "0.78rem", color: "var(--muted)" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 16, height: 3, background: overallColor, display: "inline-block", borderRadius: 2 }} />
-            近 90 天
+            全历史最佳
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span
               style={{
                 width: 16,
                 height: 3,
-                background: HISTORICAL_STROKE,
+                background: COMPARE_STROKE,
                 display: "inline-block",
                 borderRadius: 2,
-                backgroundImage: `repeating-linear-gradient(90deg, ${HISTORICAL_STROKE} 0 4px, transparent 4px 7px)`,
+                backgroundImage: `repeating-linear-gradient(90deg, ${COMPARE_STROKE} 0 4px, transparent 4px 7px)`,
                 backgroundColor: "transparent",
               }}
             />
-            全历史最佳 (紫)
+            近 90 天 (紫)
           </span>
         </div>
       )}

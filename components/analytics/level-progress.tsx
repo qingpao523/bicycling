@@ -5,27 +5,26 @@ import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
 import { DIMENSIONS, DIMENSION_META, LEVEL_TABLE, LEVEL_NAMES, LEVEL_COLOR_BUCKET, LEVEL_BG } from "@/lib/engine/cycling-levels";
 
 type Props = {
-  evaluation: LevelEvaluation;             // 主层: 近 90 天
-  historical?: LevelEvaluation | null;     // 历史峰值标记 (可选)
+  evaluation: LevelEvaluation;             // 主层: 全历史 (与功率曲线同口径)
+  recent?: LevelEvaluation | null;         // 对比层: 近 90 天 (可选)
 };
 
-// 历史色固定紫,跟段位色阶强对比,统一与 LevelRadar
-const HIST_COLOR = "#7c3aed";
+const COMPARE_COLOR = "#7c3aed";
 
-export function LevelProgress({ evaluation, historical }: Props) {
+export function LevelProgress({ evaluation, recent }: Props) {
   return (
     <div className="analytics-card">
       <div className="analytics-card-header">
         <h2>6 维能力进度</h2>
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-          {historical ? "实色填充 = 近 90 天 · 紫色叠层 + 标 = 历史最高" : "悬停阈值线查看段位"}
+          {recent ? "实色填充 = 全历史最佳 · 紫色标 = 近 90 天" : "悬停阈值线查看段位"}
         </span>
       </div>
 
       <div style={{ display: "grid", gap: 22 }}>
         {DIMENSIONS.map((dim) => {
           const ev = evaluation.byDimension[dim];
-          const histEv = historical?.byDimension[dim];
+          const histEv = recent?.byDimension[dim];
           const meta = DIMENSION_META[dim];
           const thresholds = LEVEL_TABLE[dim];
           const maxValue = thresholds[11] * 1.05;
@@ -72,14 +71,14 @@ export function LevelProgress({ evaluation, historical }: Props) {
                 {/* 历史峰值半透明紫叠层 — 当历史 > 近期时显示, 像"曾经到这里" */}
                 {histHigher && histPct !== null && (
                   <div
-                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
+                    title={`近 90 天: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
                     style={{
                       position: "absolute",
                       left: 0,
                       top: 0,
                       height: "100%",
                       width: `${histPct}%`,
-                      background: HIST_COLOR,
+                      background: COMPARE_COLOR,
                       opacity: 0.18,
                       borderRadius: 9,
                       cursor: "help",
@@ -106,7 +105,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                 {/* 历史峰值竖线标记 — 紫色 3px + 白色阴影, 显著可见, 顶上不挂标签防遮挡上方文字 */}
                 {histPct !== null && (
                   <div
-                    title={`历史最高: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
+                    title={`近 90 天: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
                     style={{
                       position: "absolute",
                       left: `${histPct}%`,
@@ -114,7 +113,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                       transform: "translateX(-50%)",
                       width: 3,
                       height: 26,
-                      background: HIST_COLOR,
+                      background: COMPARE_COLOR,
                       borderRadius: 2,
                       boxShadow: `0 0 0 2px white, 0 1px 4px rgba(124,58,237,0.4)`,
                       cursor: "help",
@@ -145,7 +144,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                 })}
               </div>
 
-              {/* 进度条下方信息行: 左 = 距下一级 / 右 = 历史最高徽章 (独立行避免遮挡) */}
+              {/* 进度条下方信息行: 左 = 距下一级 / 右 = 近 90 天徽章 (独立行避免遮挡) */}
               {(ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0) ||
               (histEv?.value != null && histEv.level != null) ? (
                 <div
@@ -167,13 +166,13 @@ export function LevelProgress({ evaluation, historical }: Props) {
                   </span>
                   {histEv?.value != null && histEv.level != null && (
                     <span
-                      title={`历史最高: ${histEv.value.toFixed(2)} ${meta.unit}`}
+                      title={`近 90 天: ${histEv.value.toFixed(2)} ${meta.unit}`}
                       style={{
                         padding: "2px 10px",
                         borderRadius: 6,
                         background: "white",
-                        color: HIST_COLOR,
-                        border: `2px solid ${HIST_COLOR}`,
+                        color: COMPARE_COLOR,
+                        border: `2px solid ${COMPARE_COLOR}`,
                         fontSize: "0.72rem",
                         fontWeight: 600,
                         display: "inline-flex",
@@ -182,7 +181,7 @@ export function LevelProgress({ evaluation, historical }: Props) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      🏆 史最高 L{histEv.level} · {histEv.value.toFixed(2)} {meta.unit}
+                      🏆 近期 L{histEv.level} · {histEv.value.toFixed(2)} {meta.unit}
                     </span>
                   )}
                 </div>

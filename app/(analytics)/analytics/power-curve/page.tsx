@@ -3,6 +3,8 @@ import { loadAnalyticsData } from "@/lib/analytics-data";
 import { buildPowerCurve } from "@/lib/engine/power-curve";
 import { PowerCurveDetailView } from "@/components/analytics/power-curve-detail";
 
+export const dynamic = "force-dynamic";
+
 export default async function PowerCurvePage() {
   const user = await requireUser();
   const { activities } = await loadAnalyticsData(user);
