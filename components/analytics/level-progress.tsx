@@ -1,15 +1,24 @@
 // components/analytics/level-progress.tsx
 "use client";
 
-import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
+import type { LevelEvaluation, Dimension } from "@/lib/engine/cycling-levels";
 import { DIMENSIONS, DIMENSION_META, LEVEL_TABLE, LEVEL_NAMES, LEVEL_COLOR_BUCKET, LEVEL_BG } from "@/lib/engine/cycling-levels";
 
 type Props = {
-  evaluation: LevelEvaluation;             // 主层: 全历史 (与功率曲线同口径)
-  recent?: LevelEvaluation | null;         // 对比层: 近 90 天 (可选)
+  evaluation: LevelEvaluation;             // 全历史最佳
+  recent?: LevelEvaluation | null;         // 近 90 天
 };
 
-const COMPARE_COLOR = "#7c3aed";
+const REF_COLOR = "#7c3aed";
+
+const SHORT_LABELS: Record<string, string> = {
+  sprint5s: "5s",
+  burst1min: "1min",
+  vo2_5min: "5min",
+  ftp_20min: "20min",
+  endurance_60min: "60min",
+  vo2max_mlkgmin: "VO2max",
+};
 
 export function LevelProgress({ evaluation, recent }: Props) {
   return (
@@ -17,26 +26,28 @@ export function LevelProgress({ evaluation, recent }: Props) {
       <div className="analytics-card-header">
         <h2>6 维能力进度</h2>
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-          {recent ? "实色填充 = 全历史最佳 · 紫色标 = 近 90 天" : "悬停阈值线查看段位"}
+          {recent ? "进度条 = 近 90 天 · 紫色标 = 全历史最佳" : "悬停阈值线查看段位"}
         </span>
       </div>
 
       <div style={{ display: "grid", gap: 22 }}>
         {DIMENSIONS.map((dim) => {
-          const ev = evaluation.byDimension[dim];
-          const histEv = recent?.byDimension[dim];
+          const allTimeEv = evaluation.byDimension[dim];
+          const recentEv = recent?.byDimension[dim];
+          const ev = recentEv ?? allTimeEv;
+          const refEv = recent ? allTimeEv : null;
           const meta = DIMENSION_META[dim];
           const thresholds = LEVEL_TABLE[dim];
           const maxValue = thresholds[11] * 1.05;
-          const currentPct = ev.value !== null ? Math.min((ev.value / maxValue) * 100, 100) : 0;
-          const histPct = histEv?.value != null ? Math.min((histEv.value / maxValue) * 100, 100) : null;
+          const primaryPct = ev.value !== null ? Math.min((ev.value / maxValue) * 100, 100) : 0;
+          const refPct = refEv?.value != null ? Math.min((refEv.value / maxValue) * 100, 100) : null;
           const color = LEVEL_BG[LEVEL_COLOR_BUCKET(ev.level ?? 0)];
-          const histHigher = histPct !== null && histPct > currentPct + 1;
+          const refAhead = refPct !== null && refPct > primaryPct + 1;
 
           return (
             <div key={dim}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
-                <strong style={{ fontSize: "0.92rem" }}>{meta.label}</strong>
+                <strong style={{ fontSize: "0.92rem" }}>{SHORT_LABELS[dim] ?? meta.label}</strong>
                 {ev.value !== null ? (
                   <span style={{ fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontWeight: 600 }}>{ev.value.toFixed(2)} {meta.unit}</span>
@@ -58,7 +69,7 @@ export function LevelProgress({ evaluation, recent }: Props) {
                 )}
               </div>
 
-              {/* 进度条 + 阈值线 + 历史叠层 */}
+              {/* 进度条 + 阈值线 + 全历史参考 */}
               <div
                 style={{
                   position: "relative",
@@ -68,17 +79,17 @@ export function LevelProgress({ evaluation, recent }: Props) {
                   overflow: "visible",
                 }}
               >
-                {/* 历史峰值半透明紫叠层 — 当历史 > 近期时显示, 像"曾经到这里" */}
-                {histHigher && histPct !== null && (
+                {/* 全历史半透明紫叠层 — 当全历史 > 近期时显示 */}
+                {refAhead && refPct !== null && (
                   <div
-                    title={`近 90 天: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
+                    title={`全历史: ${refEv!.value!.toFixed(2)} ${meta.unit} (L${refEv!.level})`}
                     style={{
                       position: "absolute",
                       left: 0,
                       top: 0,
                       height: "100%",
-                      width: `${histPct}%`,
-                      background: COMPARE_COLOR,
+                      width: `${refPct}%`,
+                      background: REF_COLOR,
                       opacity: 0.18,
                       borderRadius: 9,
                       cursor: "help",
@@ -86,7 +97,7 @@ export function LevelProgress({ evaluation, recent }: Props) {
                   />
                 )}
 
-                {/* 当前值实色填充 (主层, 在上) */}
+                {/* 近 90 天实色填充 (主层) */}
                 {ev.value !== null && (
                   <div
                     style={{
@@ -94,7 +105,7 @@ export function LevelProgress({ evaluation, recent }: Props) {
                       left: 0,
                       top: 0,
                       height: "100%",
-                      width: `${currentPct}%`,
+                      width: `${primaryPct}%`,
                       background: color,
                       borderRadius: 9,
                       transition: "width 0.6s",
@@ -102,18 +113,18 @@ export function LevelProgress({ evaluation, recent }: Props) {
                   />
                 )}
 
-                {/* 历史峰值竖线标记 — 紫色 3px + 白色阴影, 显著可见, 顶上不挂标签防遮挡上方文字 */}
-                {histPct !== null && (
+                {/* 全历史竖线标记 — 紫色 */}
+                {refPct !== null && (
                   <div
-                    title={`近 90 天: ${histEv!.value!.toFixed(2)} ${meta.unit} (L${histEv!.level})`}
+                    title={`全历史: ${refEv!.value!.toFixed(2)} ${meta.unit} (L${refEv!.level})`}
                     style={{
                       position: "absolute",
-                      left: `${histPct}%`,
+                      left: `${refPct}%`,
                       top: -4,
                       transform: "translateX(-50%)",
                       width: 3,
                       height: 26,
-                      background: COMPARE_COLOR,
+                      background: REF_COLOR,
                       borderRadius: 2,
                       boxShadow: `0 0 0 2px white, 0 1px 4px rgba(124,58,237,0.4)`,
                       cursor: "help",
@@ -144,9 +155,9 @@ export function LevelProgress({ evaluation, recent }: Props) {
                 })}
               </div>
 
-              {/* 进度条下方信息行: 左 = 距下一级 / 右 = 近 90 天徽章 (独立行避免遮挡) */}
+              {/* 进度条下方: 左 = 距下一级 / 右 = 全历史徽章 */}
               {(ev.nextLabel && ev.gapValue !== undefined && ev.gapValue > 0) ||
-              (histEv?.value != null && histEv.level != null) ? (
+              (refEv?.value != null && refEv.level != null) ? (
                 <div
                   style={{
                     marginTop: 8,
@@ -164,15 +175,15 @@ export function LevelProgress({ evaluation, recent }: Props) {
                         }`
                       : ""}
                   </span>
-                  {histEv?.value != null && histEv.level != null && (
+                  {refEv?.value != null && refEv.level != null && (
                     <span
-                      title={`近 90 天: ${histEv.value.toFixed(2)} ${meta.unit}`}
+                      title={`全历史: ${refEv.value.toFixed(2)} ${meta.unit}`}
                       style={{
                         padding: "2px 8px",
                         borderRadius: 6,
                         background: "white",
-                        color: COMPARE_COLOR,
-                        border: `2px solid ${COMPARE_COLOR}`,
+                        color: REF_COLOR,
+                        border: `2px solid ${REF_COLOR}`,
                         fontSize: "0.72rem",
                         fontWeight: 600,
                         display: "inline-flex",
@@ -180,7 +191,7 @@ export function LevelProgress({ evaluation, recent }: Props) {
                         gap: 4,
                       }}
                     >
-                      近期 L{histEv.level} · {histEv.value.toFixed(2)}
+                      全历史 L{refEv.level} · {refEv.value.toFixed(2)}
                     </span>
                   )}
                 </div>

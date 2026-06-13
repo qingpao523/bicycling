@@ -157,17 +157,18 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
               </thead>
               <tbody>
                 {DIMENSIONS.map((dim) => {
-                  const currentLevel = evaluation.byDimension[dim].level;
-                  const histLevel = recent?.byDimension[dim].level ?? null;
+                  const allTimeLevel = evaluation.byDimension[dim].level;
+                  const recentLevel = recent?.byDimension[dim].level ?? null;
+                  const primaryLevel = recentLevel ?? allTimeLevel;
+                  const refLevel = recent ? allTimeLevel : null;
                   return (
                     <tr key={dim}>
                       <td className="level-table-dim" style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
                         {SHORT_DIM_LABELS[dim] ?? DIMENSION_META[dim].label}
                       </td>
                       {LEVEL_TABLE[dim].map((t, i) => {
-                        const isCurrent = currentLevel === i;
-                        // 历史最佳: 显示在与 current 不同的位置 (避免重复装饰)
-                        const isHistOnly = histLevel === i && !isCurrent;
+                        const isPrimary = primaryLevel === i;
+                        const isRef = refLevel !== null && refLevel === i && !isPrimary;
                         return (
                           <td
                             key={i}
@@ -175,19 +176,16 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                               padding: "6px 4px",
                               textAlign: "center",
                               borderBottom: "1px solid var(--line, #e5e7eb)",
-                              background: isCurrent
+                              background: isPrimary
                                 ? LEVEL_BG[LEVEL_COLOR_BUCKET(i)]
-                                : isHistOnly
-                                  ? "var(--surface-alt, #f8fafc)"
-                                  : undefined,
-                              color: isCurrent ? "white" : undefined,
-                              fontWeight: isCurrent || isHistOnly ? 700 : 400,
-                              outline: isCurrent
+                                : undefined,
+                              color: isPrimary ? "white" : undefined,
+                              fontWeight: isPrimary || isRef ? 700 : 400,
+                              outline: isPrimary
                                 ? "2px solid #1f2937"
-                                : isHistOnly
-                                  ? `2px dashed ${LEVEL_BG[LEVEL_COLOR_BUCKET(i)]}`
+                                : isRef
+                                  ? "2px dashed #7c3aed"
                                   : undefined,
-                              position: "relative",
                             }}
                           >
                             {i === 0 ? "—" : t}
@@ -202,16 +200,12 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
             {false}
           </div>
 
-          {/* 名词解释 */}
-          <details style={{ marginBottom: 8 }}>
-            <summary style={{ cursor: "pointer", fontSize: "0.88rem", fontWeight: 600 }}>📖 名词解释</summary>
-            <div style={{ fontSize: "0.84rem", color: "var(--muted)", padding: "10px 0", lineHeight: 1.7 }}>
-              <p><strong>表中标记</strong>: ⬛ 实色高亮 = 全历史最佳所在格{recent ? "；虚线边框 = 近 90 天所在格 (相同则不重复标记)" : ""}。</p>
-              <p><strong>维度含义</strong>: 5s = 5秒峰值冲刺 · 1min = 1分钟无氧能力 · 5min = 5分钟VO2max区间 · 20min = 20分钟阈值功率(FTP) · 60min = 60分钟耐力 · VO2max = 最大摄氧量。</p>
-              <p><strong>表中单位</strong>: 5s、1min、5min、20min、60min 的阈值单位均为 <strong>W/kg</strong>；VO2max 单位为 <strong>ml/kg/min</strong>。</p>
-              <p><strong>最强项法</strong>: 综合段位 = 6 维度中最强的那个，业余车手往往专精某项，最强维度代表真实水位。</p>
-            </div>
-          </details>
+          <div style={{ fontSize: "0.75rem", color: "var(--muted)", lineHeight: 1.5, marginBottom: 8 }}>
+            <strong>表中标记</strong>: ⬛ 实色高亮 = 近 90 天所在格{recent ? "；紫色虚线框 = 全历史最佳所在格 (相同则不重复标记)" : ""}。
+            <strong>维度含义</strong>: 5s = 5秒冲刺 · 1min = 1分钟无氧 · 5min = 5分钟VO2max区间 · 20min = 阈值功率(FTP) · 60min = 耐力 · VO2max = 最大摄氧量。
+            <strong>单位</strong>: 前五项为 W/kg；VO2max 为 ml/kg/min。
+            <strong>最强项法</strong>: 综合段位 = 6 维度中最强的那个。
+          </div>
 
           {/* 来源 */}
           <div style={{ fontSize: "0.75rem", color: "var(--muted)", borderTop: "1px solid var(--line, #e5e7eb)", paddingTop: 10, marginTop: 8 }}>
