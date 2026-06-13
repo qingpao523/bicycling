@@ -23,7 +23,10 @@ export function UpgradePathCard({ plan }: Props) {
       <div className="analytics-card-header">
         <h2>
           <TrendingUp size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-          升级训练块 — {plan.block?.name}
+          升级训练块
+          <span style={{ display: "block", fontSize: "0.85rem", fontWeight: 500, color: "var(--muted)", marginTop: 4 }}>
+            {plan.block?.name}
+          </span>
         </h2>
         <span style={{ fontSize: "0.78rem", color: "#8b5cf6" }}>
           目标维度: {plan.targetDimension && DIMENSION_META[plan.targetDimension as Dimension].label}

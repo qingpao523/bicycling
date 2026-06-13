@@ -3354,35 +3354,30 @@ pre {
     overflow: hidden;
   }
 
-  /* Level standard table: compact + sticky dimension column */
+  /* Level standard table: force fit, no horizontal scroll */
   .level-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
   }
   .level-table {
-    font-size: 0.65rem !important;
+    font-size: 0.58rem !important;
+    table-layout: fixed;
+    width: 100% !important;
   }
   .level-table th,
   .level-table td {
-    padding: 4px 2px !important;
+    padding: 3px 1px !important;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .level-table .level-table-dim {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--surface-strong, #fff);
-    padding: 4px 6px !important;
-    min-width: 52px;
+    padding: 3px 4px !important;
     white-space: nowrap;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
-  }
-  .level-table thead .level-table-dim {
-    background: var(--surface-alt, #f8fafc);
+    width: 42px;
   }
   .level-table th {
-    font-size: 0.58rem !important;
-    padding: 4px 2px !important;
+    font-size: 0.5rem !important;
+    padding: 2px 1px !important;
   }
   /* Mobile: show grouped header, hide PC header */
   .level-header-pc { display: none; }

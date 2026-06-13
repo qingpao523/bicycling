@@ -44,7 +44,7 @@ export function LevelRadar({ evaluation, recent }: Props) {
         fontWeight={700}
         fill={overallColor}
       >
-        L{level}
+        {level}
       </text>
     );
   }
@@ -60,7 +60,7 @@ export function LevelRadar({ evaluation, recent }: Props) {
   return (
     <div className="analytics-card" style={{ padding: 20 }}>
       <div className="analytics-card-header">
-        <h2>能力水位雷达</h2>
+        <h2>能力雷达</h2>
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
           最强项法 · {recent ? "全历史最佳 vs 近 90 天" : "全历史最佳"} · 域 0-{radarMax}
         </span>

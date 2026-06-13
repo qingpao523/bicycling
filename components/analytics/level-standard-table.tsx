@@ -27,6 +27,15 @@ const LEVEL_GROUPS: { label: string; cols: number[]; subs?: string[] }[] = [
   { label: "职业", cols: [11] },
 ];
 
+const SHORT_DIM_LABELS: Record<string, string> = {
+  sprint5s: "5s",
+  burst1min: "1min",
+  vo2_5min: "5min",
+  ftp_20min: "20min",
+  endurance_60min: "60min",
+  vo2max_mlkgmin: "VO2max",
+};
+
 export function LevelStandardTable({ evaluation, recent }: Props) {
   const [open, setOpen] = useState(true); // 默认展开
 
@@ -57,13 +66,11 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
       {open && (
         <div style={{ marginTop: 12 }}>
           <p style={{ fontSize: "0.88rem", color: "var(--muted)", marginBottom: 16 }}>
-            本系统基于 <strong>Coggan 功率训练分级</strong> + 中文骑友圈段位命名,
-            采用 <strong>最强项法</strong> 评定综合段位 — 你的最强维度代表当前水位 (业余车手往往专精某项, 不可能全面 max)。
-            {recent && " 表中实色高亮 = 全历史最佳所在格, 虚线边框 = 近 90 天所在格。"}
+            本系统基于 <strong>Coggan 功率训练分级</strong> + 中文骑友圈段位命名，采用 <strong>最强项法</strong> 评定综合段位。
           </p>
 
           {/* 12×6 阈值表 */}
-          <div className="level-table-wrap" style={{ overflowX: "auto", marginBottom: 16 }}>
+          <div className="level-table-wrap" style={{ marginBottom: 16 }}>
             <table className="level-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
               {/* PC header: one row, each level individually */}
               <thead className="level-header-pc">
@@ -86,10 +93,10 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                   ))}
                 </tr>
               </thead>
-              {/* Mobile header: grouped levels in two rows */}
+              {/* Mobile header: three rows — group name / sub-name / L number */}
               <thead className="level-header-mobile">
                 <tr style={{ background: "var(--surface-alt, #f8fafc)" }}>
-                  <th className="level-table-dim" rowSpan={2} style={{ padding: 8, textAlign: "left", borderBottom: "1px solid var(--line, #e5e7eb)" }}>维度</th>
+                  <th className="level-table-dim" rowSpan={3} style={{ padding: 8, textAlign: "left", borderBottom: "1px solid var(--line, #e5e7eb)" }}>维度</th>
                   {LEVEL_GROUPS.map((g) => (
                     <th
                       key={g.label}
@@ -98,7 +105,7 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                       style={{
                         padding: "3px 2px",
                         textAlign: "center",
-                        borderBottom: g.subs ? "none" : "1px solid var(--line, #e5e7eb)",
+                        borderBottom: "none",
                         background: LEVEL_BG[LEVEL_COLOR_BUCKET(g.cols[0])],
                         color: "white",
                         fontSize: "0.56rem",
@@ -117,7 +124,7 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                         style={{
                           padding: "2px 1px",
                           textAlign: "center",
-                          borderBottom: "1px solid var(--line, #e5e7eb)",
+                          borderBottom: "none",
                           background: LEVEL_BG[LEVEL_COLOR_BUCKET(g.cols[si])],
                           color: "rgba(255,255,255,0.85)",
                           fontSize: "0.5rem",
@@ -129,6 +136,24 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                     ))
                   )}
                 </tr>
+                <tr style={{ background: "var(--surface-alt, #f8fafc)" }}>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <th
+                      key={`L${i}`}
+                      style={{
+                        padding: "1px",
+                        textAlign: "center",
+                        borderBottom: "1px solid var(--line, #e5e7eb)",
+                        background: LEVEL_BG[LEVEL_COLOR_BUCKET(i)],
+                        color: "rgba(255,255,255,0.7)",
+                        fontSize: "0.45rem",
+                        fontWeight: 400,
+                      }}
+                    >
+                      L{i}
+                    </th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {DIMENSIONS.map((dim) => {
@@ -137,7 +162,7 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                   return (
                     <tr key={dim}>
                       <td className="level-table-dim" style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
-                        {DIMENSION_META[dim].label}<span className="level-dim-unit" style={{ color: "var(--muted)", fontWeight: 400 }}> ({DIMENSION_META[dim].unit})</span>
+                        {SHORT_DIM_LABELS[dim] ?? DIMENSION_META[dim].label}
                       </td>
                       {LEVEL_TABLE[dim].map((t, i) => {
                         const isCurrent = currentLevel === i;
@@ -166,24 +191,6 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                             }}
                           >
                             {i === 0 ? "—" : t}
-                            {isHistOnly && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: -2,
-                                  right: -2,
-                                  fontSize: "0.55rem",
-                                  background: LEVEL_BG[LEVEL_COLOR_BUCKET(i)],
-                                  color: "white",
-                                  padding: "1px 4px",
-                                  borderRadius: 3,
-                                  fontWeight: 700,
-                                }}
-                                title={`近 90 天: ${recent!.byDimension[dim].value?.toFixed(2) ?? "?"} ${DIMENSION_META[dim].unit}`}
-                              >
-                                近
-                              </div>
-                            )}
                           </td>
                         );
                       })}
@@ -192,21 +199,17 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                 })}
               </tbody>
             </table>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 8 }}>
-              ⬛ 实色高亮 = 全历史最佳所在格
-              {recent && " · ⬜ 虚线边框 + 「近」标 = 近 90 天所在格 (与全历史相同则不重复标记)"}
-            </p>
+            {false}
           </div>
 
           {/* 名词解释 */}
           <details style={{ marginBottom: 8 }}>
             <summary style={{ cursor: "pointer", fontSize: "0.88rem", fontWeight: 600 }}>📖 名词解释</summary>
             <div style={{ fontSize: "0.84rem", color: "var(--muted)", padding: "10px 0", lineHeight: 1.7 }}>
-              <p><strong>表中单位</strong>: 5s 峰值、1min 无氧、5min VO2、FTP (20min)、60min 耐力的阈值单位均为 <strong>W/kg</strong>；VO2max 单位为 <strong>ml/kg/min</strong>。</p>
-              <p><strong>W/kg</strong>: 功率除以体重, 反映绝对耐力水平。同等功率下越轻 W/kg 越高。</p>
-              <p><strong>FTP (Functional Threshold Power)</strong>: 60 分钟最大持续输出功率, 衡量阈值能力的核心指标。</p>
-              <p><strong>VO2max</strong>: 最大摄氧量 (ml/kg/min), 决定高强度天花板, 由心肺基因 + 训练共同决定。</p>
-              <p><strong>最强项法</strong>: 综合段位 = 6 维度中最强的那个。理由: 业余车手往往专精某项, 最强维度代表你的真实水位。</p>
+              <p><strong>表中标记</strong>: ⬛ 实色高亮 = 全历史最佳所在格{recent ? "；虚线边框 = 近 90 天所在格 (相同则不重复标记)" : ""}。</p>
+              <p><strong>维度含义</strong>: 5s = 5秒峰值冲刺 · 1min = 1分钟无氧能力 · 5min = 5分钟VO2max区间 · 20min = 20分钟阈值功率(FTP) · 60min = 60分钟耐力 · VO2max = 最大摄氧量。</p>
+              <p><strong>表中单位</strong>: 5s、1min、5min、20min、60min 的阈值单位均为 <strong>W/kg</strong>；VO2max 单位为 <strong>ml/kg/min</strong>。</p>
+              <p><strong>最强项法</strong>: 综合段位 = 6 维度中最强的那个，业余车手往往专精某项，最强维度代表真实水位。</p>
             </div>
           </details>
 
