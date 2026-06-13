@@ -3274,8 +3274,15 @@ pre {
     gap: 8px;
   }
 
-  /* Fuel/recovery inputs 2-col */
+  /* Fuel/recovery: outer sections stack vertically (natural from minmax(320px)),
+     inner input fields stay 2-col */
   .fuel-recovery-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .activity-fuel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .recovery-action-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 
@@ -3305,10 +3312,65 @@ pre {
     width: 100%;
   }
 
+  /* Power curve table: compact for mobile */
+  .power-table {
+    font-size: 0.78rem !important;
+  }
+  .power-table th,
+  .power-table td {
+    padding: 8px 6px !important;
+  }
+  .power-table th:first-child,
+  .power-table td:first-child {
+    padding-left: 8px !important;
+    min-width: 52px;
+  }
+
   /* CP model grid compact */
   .cp-model-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px !important;
+  }
+
+  /* Level page: stack radar+progress+table vertically */
+  .level-main-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Level page: prevent page-level horizontal scroll */
+  .analytics-page {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Level standard table: compact + sticky dimension column */
+  .level-table-wrap {
+    max-width: calc(100vw - 56px);
+  }
+  .level-table {
+    font-size: 0.65rem !important;
+  }
+  .level-table th,
+  .level-table td {
+    padding: 4px 2px !important;
+    white-space: nowrap;
+  }
+  .level-table .level-table-dim {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--surface-strong, #fff);
+    padding: 4px 6px !important;
+    min-width: 52px;
+    white-space: nowrap;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+  }
+  .level-table thead .level-table-dim {
+    background: var(--surface-alt, #f8fafc);
+  }
+  .level-table th {
+    font-size: 0.58rem !important;
+    padding: 4px 2px !important;
   }
 }
 

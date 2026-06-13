@@ -142,12 +142,12 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+          <table className="power-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--line)" }}>
                 <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时间</th>
                 <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>历史最佳</th>
-                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>最近 42 天</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>近 42 天</th>
                 {weightKg ? (
                   <>
                     <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>W/kg</th>
@@ -163,7 +163,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
                 const isPrime = row.seconds === 5 || row.seconds === 60 || row.seconds === 300 || row.seconds === 1200;
                 return (
                   <tr key={row.seconds} style={{ borderBottom: "1px solid var(--line)", background: isPrime ? "rgba(31,87,214,0.03)" : "transparent" }}>
-                    <td style={{ padding: "10px 12px", fontWeight: isPrime ? 600 : 400 }}>
+                    <td style={{ padding: "10px 12px", fontWeight: isPrime ? 600 : 400, whiteSpace: "nowrap" }}>
                       {isPrime && <span style={{ display: "inline-block", width: 3, height: 14, background: categoryColor, marginRight: 8, verticalAlign: "middle" }} />}
                       {row.label}
                     </td>

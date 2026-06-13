@@ -22,6 +22,27 @@ export interface AnalyticsData {
   };
 }
 
+/**
+ * Strip raw JSON blobs down to only the fields downstream pages actually use,
+ * so the cached payload stays well under Next.js's 2 MB limit.
+ */
+function slimActivity(a: NormalizedActivity): NormalizedActivity {
+  const rawSummary = (a.rawSummaryJson ?? {}) as Record<string, unknown>;
+  const rawStreams = (a.rawStreamsJson ?? {}) as Record<string, unknown>;
+  return {
+    ...a,
+    rawSummaryJson: {
+      type: rawSummary.type,
+      sport_type: rawSummary.sport_type,
+      trainer: rawSummary.trainer,
+      calories: rawSummary.calories,
+    } as Record<string, unknown>,
+    rawStreamsJson: rawStreams.watts
+      ? ({ watts: rawStreams.watts } as Record<string, unknown>)
+      : undefined,
+  };
+}
+
 const fetchAnalyticsData = unstable_cache(
   async (userId: string, userJson: string): Promise<AnalyticsData> => {
     const user: User = JSON.parse(userJson);
@@ -38,7 +59,7 @@ const fetchAnalyticsData = unstable_cache(
     };
 
     return {
-      activities: normalized,
+      activities: normalized.map(slimActivity),
       originalCount: stats.withOriginalTss,
       computedTssCount: stats.computedFromPower + stats.computedFromHr + stats.computedFromRpe,
       stats,

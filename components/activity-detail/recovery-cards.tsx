@@ -35,7 +35,7 @@ export function ActivityRecoveryCards({ recovery, review, enabled }: Props) {
         <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>看完就知道今晚怎么恢复、明天怎么练</span>
       </div>
       <p style={{ margin: "0 0 14px" }}>{recovery.summary}</p>
-      <div style={{ display: "grid", gap: 12 }}>
+      <div className="recovery-action-grid" style={{ display: "grid", gap: 12 }}>
         {actionCards.map((card) => (
           <div key={card.title} className="list-card">
             <h3>{card.title}</h3>

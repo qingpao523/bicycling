@@ -54,11 +54,11 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
           </p>
 
           {/* 12×6 阈值表 */}
-          <div style={{ overflowX: "auto", marginBottom: 16 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
+          <div className="level-table-wrap" style={{ overflowX: "auto", marginBottom: 16 }}>
+            <table className="level-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
               <thead>
                 <tr style={{ background: "var(--surface-alt, #f8fafc)" }}>
-                  <th style={{ padding: 8, textAlign: "left", borderBottom: "1px solid var(--line, #e5e7eb)" }}>维度</th>
+                  <th className="level-table-dim" style={{ padding: 8, textAlign: "left", borderBottom: "1px solid var(--line, #e5e7eb)" }}>维度</th>
                   {LEVEL_NAMES.map((name, i) => (
                     <th
                       key={i}
@@ -82,7 +82,7 @@ export function LevelStandardTable({ evaluation, recent }: Props) {
                   const histLevel = recent?.byDimension[dim].level ?? null;
                   return (
                     <tr key={dim}>
-                      <td style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
+                      <td className="level-table-dim" style={{ padding: 8, fontWeight: 600, borderBottom: "1px solid var(--line, #e5e7eb)" }}>
                         {DIMENSION_META[dim].label} <span style={{ color: "var(--muted)", fontWeight: 400 }}>({DIMENSION_META[dim].unit})</span>
                       </td>
                       {LEVEL_TABLE[dim].map((t, i) => {

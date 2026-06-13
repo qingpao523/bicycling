@@ -62,16 +62,16 @@ export default async function LevelPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <LevelRadar evaluation={evaluation} recent={recent} />
+      <LevelRadar evaluation={evaluation} recent={recent} />
+
+      <div className="level-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <LevelProgress evaluation={evaluation} recent={recent} />
+        <LevelStandardTable evaluation={evaluation} recent={recent} />
       </div>
 
       <UpgradePathCard plan={upgradePlan} />
 
       <EtaPredictionCard eta={eta} nextLabel={ftpNextLabel} />
-
-      <LevelStandardTable evaluation={evaluation} recent={recent} />
 
       <div style={{ textAlign: "center", padding: 12 }}>
         <Link href="/analytics#pmc-chart" style={{ color: "var(--accent, #1f57d6)", fontSize: "0.88rem" }}>
