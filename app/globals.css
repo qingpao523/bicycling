@@ -3121,6 +3121,10 @@ pre {
   font-weight: 700;
 }
 
+/* Default (PC): show individual header, hide grouped mobile header */
+.level-header-pc { display: table-header-group; }
+.level-header-mobile { display: none; }
+
 /* ─── Desktop / Mobile 切换 ──────────────── */
 @media (max-width: 768px) {
   .desktop-only {
@@ -3332,20 +3336,28 @@ pre {
     gap: 10px !important;
   }
 
-  /* Level page: stack radar+progress+table vertically */
-  .level-main-grid {
+  /* Level page: stack radar+progress vertically on mobile */
+  .level-top-grid {
     grid-template-columns: 1fr !important;
   }
+  .level-top-grid > * {
+    min-width: 0;
+  }
 
-  /* Level page: prevent page-level horizontal scroll */
-  .analytics-page {
-    max-width: 100vw;
-    overflow-x: hidden;
+  /* Grid children: allow shrinking below content width */
+  .analytics-page > * {
+    min-width: 0;
+  }
+  .analytics-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   /* Level standard table: compact + sticky dimension column */
   .level-table-wrap {
-    max-width: calc(100vw - 56px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .level-table {
     font-size: 0.65rem !important;
@@ -3371,6 +3383,47 @@ pre {
   .level-table th {
     font-size: 0.58rem !important;
     padding: 4px 2px !important;
+  }
+  /* Mobile: show grouped header, hide PC header */
+  .level-header-pc { display: none; }
+  .level-header-mobile { display: table-header-group; }
+  /* Mobile: hide dimension units */
+  .level-dim-unit { display: none; }
+
+  /* Readiness factors: 2×2 grid on mobile */
+  .readiness-factors {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* Power curve: compact CAT badge — abbreviate via CSS content swap */
+  .power-cat {
+    font-size: 0 !important;
+    padding: 2px 6px !important;
+    line-height: 1;
+  }
+  .power-cat::after {
+    content: attr(data-short);
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  /* Leaderboard table: hide less important columns, compact on mobile */
+  .leaderboard-table .lb-col-source,
+  .leaderboard-table .lb-col-date {
+    display: none;
+  }
+  .leaderboard-table td,
+  .leaderboard-table th {
+    padding: 8px 6px !important;
+    font-size: 0.82rem;
+  }
+  .lb-new-badge {
+    padding: 2px 6px !important;
+    font-size: 0.65rem !important;
+    gap: 2px !important;
+    white-space: nowrap;
   }
 }
 
@@ -3602,6 +3655,40 @@ pre {
 .wellness-trend-card h3 {
   font-size: 1rem;
   font-weight: 600;
+}
+
+.wellness-trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wellness-trend-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .wellness-trend-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .wellness-trend-controls {
+    justify-content: space-between;
+  }
+  .wellness-trend-controls .time-range-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  .wellness-trend-controls .wellness-tab-btn {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+  }
 }
 
 .wellness-tab-switch {

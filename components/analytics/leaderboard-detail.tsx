@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Award, Trophy, BarChart3, Table2 } from "lucide-react";
+import { Award } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -12,7 +12,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 
 interface PersonalBestRecord {
@@ -39,15 +38,14 @@ interface Props {
 }
 
 const RANGES = [
-  { key: "all", label: "全部历史" },
-  { key: "year", label: "本年度" },
-  { key: "d90", label: "最近 90 天" },
   { key: "d30", label: "最近 30 天" },
+  { key: "d90", label: "最近 90 天" },
+  { key: "year", label: "本年度" },
+  { key: "all", label: "全部历史" },
 ] as const;
 
 export function LeaderboardDetailView({ records, monthlyTrends, hasWeight }: Props) {
-  const [range, setRange] = useState<"all" | "year" | "d90" | "d30">("all");
-  const [view, setView] = useState<"table" | "chart">("table");
+  const [range, setRange] = useState<"all" | "year" | "d90" | "d30">("d30");
   const [trendDuration, setTrendDuration] = useState(1200);
 
   const currentRecords = records[range];
@@ -66,8 +64,6 @@ export function LeaderboardDetailView({ records, monthlyTrends, hasWeight }: Pro
     .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-12)
     .map(([month, count]) => ({ month: month.slice(5), count }));
-
-  const maxChartPower = Math.max(...currentRecords.map((r) => r.power), 1);
 
   const trendData = monthlyTrends[trendDuration] ?? [];
   const trendDurationLabel = {
@@ -109,93 +105,58 @@ export function LeaderboardDetailView({ records, monthlyTrends, hasWeight }: Pro
       <div className="analytics-card">
         <div className="analytics-card-header" style={{ flexWrap: "wrap", gap: 12 }}>
           <h2>个人最佳功率</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <div className="time-range-selector">
-              {RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  className={`time-range-btn ${range === r.key ? "time-range-btn--active" : ""}`}
-                  onClick={() => setRange(r.key)}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-            <div style={{ width: 1, background: "var(--line)", margin: "0 4px" }} />
-            <button
-              className={`time-range-btn ${view === "table" ? "time-range-btn--active" : ""}`}
-              onClick={() => setView("table")}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              <Table2 size={12} /> 表格
-            </button>
-            <button
-              className={`time-range-btn ${view === "chart" ? "time-range-btn--active" : ""}`}
-              onClick={() => setView("chart")}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              <BarChart3 size={12} /> 柱状图
-            </button>
+          <div className="time-range-selector">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                className={`time-range-btn ${range === r.key ? "time-range-btn--active" : ""}`}
+                onClick={() => setRange(r.key)}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {view === "table" ? (
-          <div style={{ overflowX: "auto" }}>
-            <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--line)" }}>
-                  <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时间段</th>
-                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>功率 (W)</th>
-                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>W/kg</th>
-                  <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>来源活动</th>
-                  <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>日期</th>
-                  <th style={{ textAlign: "center", padding: "10px 12px" }}></th>
+        <div style={{ overflowX: "auto" }}>
+          <table className="data-table leaderboard-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid var(--line)" }}>
+                <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时间段</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>功率 (W)</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>W/kg</th>
+                <th className="lb-col-source" style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>来源活动</th>
+                <th className="lb-col-date" style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>日期</th>
+                <th style={{ textAlign: "center", padding: "10px 12px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentRecords.map((record) => (
+                <tr key={record.duration} style={{ borderBottom: "1px solid var(--line)" }}>
+                  <td style={{ padding: "12px", fontWeight: 600 }}>{record.durationLabel}</td>
+                  <td style={{ padding: "12px", textAlign: "right", fontWeight: 700, fontSize: "1.05rem" }}>{record.power}</td>
+                  <td style={{ padding: "12px", textAlign: "right", color: "var(--muted)" }}>
+                    {record.wpkg !== null ? record.wpkg.toFixed(2) : "--"}
+                  </td>
+                  <td className="lb-col-source" style={{ padding: "12px", color: "var(--muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {record.activityName}
+                  </td>
+                  <td className="lb-col-date" style={{ padding: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {new Date(record.achievedAt).toLocaleDateString("zh-CN")}
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "center" }}>
+                    {record.isNew && (
+                      <span className="lb-new-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--cta)", color: "white", padding: "2px 8px", borderRadius: 6, fontSize: "0.72rem", fontWeight: 600 }}>
+                        <Award size={12} /> 新纪录
+                        {record.improvement !== null && ` +${record.improvement}%`}
+                      </span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {currentRecords.map((record) => (
-                  <tr key={record.duration} style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td style={{ padding: "12px", fontWeight: 600 }}>{record.durationLabel}</td>
-                    <td style={{ padding: "12px", textAlign: "right", fontWeight: 700, fontSize: "1.05rem" }}>{record.power}</td>
-                    <td style={{ padding: "12px", textAlign: "right", color: "var(--muted)" }}>
-                      {record.wpkg !== null ? record.wpkg.toFixed(2) : "--"}
-                    </td>
-                    <td style={{ padding: "12px", color: "var(--muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {record.activityName}
-                    </td>
-                    <td style={{ padding: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                      {new Date(record.achievedAt).toLocaleDateString("zh-CN")}
-                    </td>
-                    <td style={{ padding: "12px", textAlign: "center" }}>
-                      {record.isNew && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--cta)", color: "white", padding: "2px 8px", borderRadius: 6, fontSize: "0.72rem", fontWeight: 600 }}>
-                          <Award size={12} /> 新纪录
-                          {record.improvement !== null && ` +${record.improvement}%`}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="analytics-chart-container" style={{ height: 320 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={currentRecords} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="durationLabel" tick={{ fontSize: 11, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#888" }} />
-                <Tooltip contentStyle={{ borderRadius: 10, fontSize: "0.82rem" }} formatter={(v) => [`${v} W`, "功率"]} />
-                <Bar dataKey="power" radius={[4, 4, 0, 0]}>
-                  {currentRecords.map((r, i) => (
-                    <Cell key={i} fill={r.isNew ? "#f59e0b" : "#1f57d6"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Monthly Trend for Key Duration */}

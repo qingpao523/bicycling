@@ -8,6 +8,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
+  type LabelProps,
 } from "recharts";
 import type { LevelEvaluation } from "@/lib/engine/cycling-levels";
 import { DIMENSIONS, DIMENSION_META, LEVEL_COLOR_BUCKET, LEVEL_BG } from "@/lib/engine/cycling-levels";
@@ -29,6 +30,24 @@ export function LevelRadar({ evaluation, recent }: Props) {
   }));
 
   const overallColor = LEVEL_BG[LEVEL_COLOR_BUCKET(evaluation.overall.level)];
+
+  function RadarLabel(props: LabelProps & { index?: number }) {
+    const { x, y, index } = props;
+    if (x == null || y == null || index == null) return null;
+    const level = radarData[index]?.allTime ?? 0;
+    return (
+      <text
+        x={Number(x)}
+        y={Number(y) - 8}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={700}
+        fill={overallColor}
+      >
+        L{level}
+      </text>
+    );
+  }
 
   const maxObservedLevel = Math.max(
     evaluation.overall.level,
@@ -72,7 +91,7 @@ export function LevelRadar({ evaluation, recent }: Props) {
               />
             )}
 
-            {/* 主层: 全历史, 段位色实线 */}
+            {/* 主层: 全历史, 段位色实线 + 各维度等级标注 */}
             <Radar
               name="全历史最佳"
               dataKey="allTime"
@@ -80,6 +99,7 @@ export function LevelRadar({ evaluation, recent }: Props) {
               fill={overallColor}
               fillOpacity={0.45}
               strokeWidth={3}
+              label={<RadarLabel />}
             />
           </RadarChart>
         </ResponsiveContainer>

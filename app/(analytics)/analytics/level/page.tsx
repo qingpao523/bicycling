@@ -62,12 +62,12 @@ export default async function LevelPage() {
         </div>
       )}
 
-      <LevelRadar evaluation={evaluation} recent={recent} />
-
-      <div className="level-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="level-top-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <LevelRadar evaluation={evaluation} recent={recent} />
         <LevelProgress evaluation={evaluation} recent={recent} />
-        <LevelStandardTable evaluation={evaluation} recent={recent} />
       </div>
+
+      <LevelStandardTable evaluation={evaluation} recent={recent} />
 
       <UpgradePathCard plan={upgradePlan} />
 

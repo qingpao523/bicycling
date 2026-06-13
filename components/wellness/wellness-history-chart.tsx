@@ -85,9 +85,9 @@ export function WellnessHistoryChart({ data }: { data: WellnessHistoryPoint[] })
 
   return (
     <div className="analytics-card wellness-trend-card">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h3 style={{ margin: 0 }}>状态趋势</h3>
+      <div className="wellness-trend-header">
+        <h3 style={{ margin: 0 }}>状态趋势</h3>
+        <div className="wellness-trend-controls">
           <div className="wellness-tab-switch">
             <button
               className={`wellness-tab-btn ${tab === "data" ? "wellness-tab-btn--active" : ""}`}
@@ -102,17 +102,17 @@ export function WellnessHistoryChart({ data }: { data: WellnessHistoryPoint[] })
               评分趋势
             </button>
           </div>
-        </div>
-        <div className="time-range-selector">
-          {TIME_RANGES.map((r) => (
-            <button
-              key={r.days}
-              className={`time-range-btn ${range === r.days ? "time-range-btn--active" : ""}`}
-              onClick={() => setRange(r.days)}
-            >
-              {r.label}
-            </button>
-          ))}
+          <div className="time-range-selector">
+            {TIME_RANGES.map((r) => (
+              <button
+                key={r.days}
+                className={`time-range-btn ${range === r.days ? "time-range-btn--active" : ""}`}
+                onClick={() => setRange(r.days)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

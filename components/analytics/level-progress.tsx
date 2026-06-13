@@ -168,7 +168,7 @@ export function LevelProgress({ evaluation, recent }: Props) {
                     <span
                       title={`近 90 天: ${histEv.value.toFixed(2)} ${meta.unit}`}
                       style={{
-                        padding: "2px 10px",
+                        padding: "2px 8px",
                         borderRadius: 6,
                         background: "white",
                         color: COMPARE_COLOR,
@@ -178,10 +178,9 @@ export function LevelProgress({ evaluation, recent }: Props) {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 4,
-                        whiteSpace: "nowrap",
                       }}
                     >
-                      🏆 近期 L{histEv.level} · {histEv.value.toFixed(2)} {meta.unit}
+                      近期 L{histEv.level} · {histEv.value.toFixed(2)}
                     </span>
                   )}
                 </div>

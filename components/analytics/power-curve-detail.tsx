@@ -179,15 +179,19 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
                           {row.wpkgAll ? row.wpkgAll.toFixed(2) : "--"}
                         </td>
                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
-                          <span style={{
-                            display: "inline-block",
-                            padding: "2px 10px",
-                            borderRadius: 6,
-                            fontSize: "0.78rem",
-                            fontWeight: 600,
-                            background: `${categoryColor}15`,
-                            color: categoryColor,
-                          }}>
+                          <span
+                            className="power-cat"
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 10px",
+                              borderRadius: 6,
+                              fontSize: "0.78rem",
+                              fontWeight: 600,
+                              background: `${categoryColor}15`,
+                              color: categoryColor,
+                            }}
+                            data-short={category.replace("Cat ", "C").replace("<Cat5", "<C5")}
+                          >
                             {category}
                           </span>
                         </td>
