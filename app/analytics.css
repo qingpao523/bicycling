@@ -228,10 +228,15 @@
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px;
+    width: 200px;
     z-index: 1000;
     border-radius: 0;
-    height: 100vh;
+    height: calc(100vh - 56px - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    padding-bottom: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .analytics-nav--open {
@@ -239,15 +244,7 @@
   }
 
   .analytics-nav-mobile-toggle {
-    display: flex;
-    position: static;
-    width: auto;
-    height: auto;
-    padding: 10px 16px;
-    border-radius: 12px;
-    gap: 6px;
-    margin: 0 auto 12px 0;
-    font-size: 0.82rem;
+    display: none !important;
   }
 
   .analytics-nav-overlay {
@@ -263,7 +260,7 @@
   }
 
   .analytics-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 

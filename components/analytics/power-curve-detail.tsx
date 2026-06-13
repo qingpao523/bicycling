@@ -265,7 +265,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
           <h2>关键时间点最佳记录来源</h2>
           <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>该功率出自哪次骑行</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+        <div className="pr-source-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {tableData.filter((r) => [5, 60, 300, 1200, 3600].includes(r.seconds) && r.activityName).map((r) => (
             <div key={r.seconds} style={{ padding: "12px 14px", background: "var(--surface-alt)", borderRadius: 10 }}>
               <div style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{r.label}最佳</div>

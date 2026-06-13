@@ -141,7 +141,7 @@ export function LeaderboardDetailView({ records, monthlyTrends, hasWeight }: Pro
 
         {view === "table" ? (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+            <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid var(--line)" }}>
                   <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时间段</th>

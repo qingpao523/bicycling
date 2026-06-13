@@ -80,7 +80,7 @@ export function ActivitiesKpiRow({ stats, compare, prevStats }: Props) {
   ];
 
   return (
-    <div className="analytics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+    <div className="analytics-grid" style={{ display: "grid", gap: 16 }}>
       {cards.map((c) => (
         <Link
           key={c.eyebrow}

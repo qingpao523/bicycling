@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   type ActivityIntensityBadge,
   LEVEL_BG,
@@ -59,6 +60,13 @@ export function ActivityHero({ activity, metrics, badge, error, success }: Props
 
   return (
     <section className="analytics-card" style={{ display: "grid", gap: 16 }}>
+      <Link
+        href="/activities"
+        className="activity-back-link"
+        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.82rem", color: "var(--muted)", textDecoration: "none" }}
+      >
+        ← 返回运动记录
+      </Link>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow">单次骑行分析</div>

@@ -226,7 +226,7 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
             </span>
           </div>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+            <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid var(--line)" }}>
                   <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时长</th>
@@ -283,7 +283,7 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
             <h2>Critical Power 模型</h2>
             <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>基于 P(t) = CP + W'/t</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+          <div className="cp-model-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
             <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: 10 }}>
               <div className="eyebrow">CP 临界功率</div>
               <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--accent)" }}>{ftpEstimate.criticalPower.cp} W</div>

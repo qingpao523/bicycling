@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BarChart3, CalendarClock, Heart, MessageCircle, Settings, Shield } from "lucide-react";
+import { BarChart3, CalendarClock, Heart, Menu, MessageCircle, Settings, Shield } from "lucide-react";
 
 interface BottomNavProps {
   isAdmin: boolean;
@@ -35,6 +35,14 @@ export function BottomNav({ isAdmin }: BottomNavProps) {
           <span>{label}</span>
         </Link>
       ))}
+      <button
+        type="button"
+        className="bottom-nav-item"
+        onClick={() => window.dispatchEvent(new CustomEvent("toggle-nav-menu"))}
+      >
+        <Menu size={20} />
+        <span>更多</span>
+      </button>
       {isAdmin && (
         <Link
           href="/admin"

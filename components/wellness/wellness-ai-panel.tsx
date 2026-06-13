@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Sparkles, AlertCircle, RefreshCw, Clock, Pill, Dumbbell, Shield, Heart } from "lucide-react";
+import { AiChatModal, AiChatButton } from "@/components/analytics/ai-chat-modal";
 
 interface WellnessAiResult {
   overall_assessment: string;
@@ -47,6 +48,7 @@ export function WellnessAiPanel() {
   const [report, setReport] = useState<WellnessAiResult | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [streamPercent, setStreamPercent] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -129,7 +131,7 @@ export function WellnessAiPanel() {
   if (!report && !loading && !error) {
     return (
       <div className="analytics-card" style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.04), rgba(59,130,246,0.04))" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div className="ai-panel-pre-gen" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, #22c55e, #3b82f6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Sparkles size={24} />
           </div>
@@ -140,6 +142,7 @@ export function WellnessAiPanel() {
             </p>
           </div>
           <button
+            className="ai-panel-pre-gen-btn"
             onClick={() => generate(false)}
             style={{
               padding: "12px 24px", borderRadius: 10, border: "none",
@@ -205,6 +208,7 @@ export function WellnessAiPanel() {
                 <Clock size={12} /> {formatGeneratedAt(generatedAt)}生成
               </span>
             )}
+            <AiChatButton onClick={() => setChatOpen(true)} />
             <button
               onClick={() => generate(true)}
               disabled={regenerating}
@@ -325,6 +329,8 @@ export function WellnessAiPanel() {
           </div>
         )}
       </div>
+
+      <AiChatModal open={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 }

@@ -18,11 +18,9 @@ import {
   Target,
   Trophy,
   Zap,
-  Menu,
   Mountain,
-  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navItems = [
   { href: "/analytics", label: "首页", icon: Home },
@@ -47,6 +45,14 @@ export function AnalyticsNavMenu() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  useEffect(() => {
+    function onToggle() {
+      setMobileOpen((prev) => !prev);
+    }
+    window.addEventListener("toggle-nav-menu", onToggle);
+    return () => window.removeEventListener("toggle-nav-menu", onToggle);
+  }, []);
+
   const isActive = (href: string) => {
     if (href === "/analytics") return pathname === "/analytics";
     return pathname.startsWith(href);
@@ -54,14 +60,6 @@ export function AnalyticsNavMenu() {
 
   return (
     <>
-      <button
-        className="analytics-nav-mobile-toggle"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label="切换导航菜单"
-      >
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-      </button>
-
       {mobileOpen && (
         <div
           className="analytics-nav-overlay"

@@ -3095,6 +3095,32 @@ pre {
   display: none;
 }
 
+/* Activities toolbar toggle (hidden on desktop) */
+.activities-toolbar-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text);
+}
+.activities-toolbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--accent, #1f57d6);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 /* ─── Desktop / Mobile 切换 ──────────────── */
 @media (max-width: 768px) {
   .desktop-only {
@@ -3197,6 +3223,92 @@ pre {
 
   .segment-coverage-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* AI panel pre-gen: mobile vertical stack */
+  .ai-panel-pre-gen {
+    flex-direction: column !important;
+    text-align: center;
+    gap: 12px !important;
+  }
+  .ai-panel-pre-gen-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modal full-screen on mobile */
+  .modal-backdrop {
+    padding: 0;
+  }
+  .modal-panel {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    padding: 16px;
+  }
+  .modal-panel-wide {
+    width: 100vw;
+  }
+  .modal-split {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .modal-section {
+    min-height: 40vh;
+  }
+
+  /* Activities filter toolbar: compact 2-col grid */
+  .activities-toolbar-filters {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .activities-toolbar-filters select {
+    width: 100%;
+  }
+  .activities-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Fuel/recovery inputs 2-col */
+  .fuel-recovery-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* PR source cards 2x2 */
+  .pr-source-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Rider type analysis: stack vertically */
+  .rider-type-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Activities toolbar: collapsed by default on mobile */
+  .activities-toolbar-toggle {
+    display: inline-flex !important;
+  }
+  .activities-toolbar-form {
+    display: none !important;
+  }
+  .activities-toolbar-form--open {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .activities-toolbar-form--open label {
+    width: 100%;
+  }
+
+  /* CP model grid compact */
+  .cp-model-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
   }
 }
 

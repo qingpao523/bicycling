@@ -8,6 +8,7 @@ type Props = {
 export function ActivityFuelRecoverySection({ fuelForm, recoveryCards }: Props) {
   return (
     <div
+      className="fuel-recovery-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",

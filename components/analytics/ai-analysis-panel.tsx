@@ -129,7 +129,7 @@ export function AiAnalysisPanel() {
   if (!report && !loading && !error) {
     return (
       <div className="analytics-card" style={{ background: "linear-gradient(135deg, rgba(31,87,214,0.04), rgba(124,58,237,0.04))" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div className="ai-panel-pre-gen" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Sparkles size={24} />
           </div>
@@ -140,6 +140,7 @@ export function AiAnalysisPanel() {
             </p>
           </div>
           <button
+            className="ai-panel-pre-gen-btn"
             onClick={() => generate(false)}
             style={{
               padding: "12px 24px",
@@ -267,7 +268,7 @@ export function AiAnalysisPanel() {
       )}
 
       {/* Strengths & Weaknesses */}
-      <div className="analytics-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+      <div className="analytics-grid">
         <div className="analytics-card" style={{ borderTop: "3px solid var(--ok)", marginBottom: 0 }}>
           <h3 style={{ margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8, color: "var(--ok)" }}>
             <CheckCircle2 size={18} /> 强项
@@ -298,7 +299,7 @@ export function AiAnalysisPanel() {
             骑手类型分析
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 16, alignItems: "center" }}>
+        <div className="rider-type-grid" style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 16, alignItems: "center" }}>
           <div style={{ padding: "14px 20px", borderRadius: 12, background: "var(--accent-soft)", color: "var(--accent)", fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-space-grotesk), sans-serif" }}>
             {report.rider_type_analysis.current_type}
           </div>
