@@ -5,10 +5,8 @@ import { Bike } from "lucide-react";
 
 import "@/app/globals.css";
 import { getLayoutContext } from "@/lib/guards";
-import { LazyCopilot } from "@/components/assistant/lazy-copilot";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { UserMenu } from "@/components/layout/user-menu";
-import { buildAssistantSystemPrompt } from "@/lib/assistant/system-prompt";
 
 const ibmPlex = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
@@ -40,8 +38,7 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { config, user, ready } = await getLayoutContext();
 
-  const isNewUser = ready && user && user.onboardingStatus !== "completed";
-  const showCopilot = ready && !!user;
+  const showNav = ready && !!user;
 
   return (
     <html lang="zh-CN" className={`${ibmPlex.variable} ${spaceGrotesk.variable}`}>
@@ -82,20 +79,7 @@ export default async function RootLayout({
           </header>
           {children}
         </div>
-        {showCopilot && (
-          <LazyCopilot
-            user={{
-              name: user.name,
-              userType: user.userType ?? undefined,
-              ftp: user.ftp ?? undefined,
-              weightKg: user.weightKg ?? undefined,
-              maxHr: user.maxHr ?? undefined,
-            }}
-            systemPrompt={buildAssistantSystemPrompt(user)}
-            isNewUser={!!isNewUser}
-          />
-        )}
-        {showCopilot && <BottomNav isAdmin={user.role === "admin"} />}
+        {showNav && <BottomNav isAdmin={user.role === "admin"} />}
       </body>
     </html>
   );
