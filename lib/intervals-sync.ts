@@ -1,5 +1,6 @@
 import { dedupeIncomingActivities } from "@/lib/activity-dedupe";
 import { decryptSecret } from "@/lib/crypto";
+import { hasUsefulStream, extractStravaId, ensureStravaToken } from "@/lib/engine/stream-backfill";
 import { fetchIntervalsActivities, fetchIntervalsActivityStreams, fetchIntervalsProfile } from "@/lib/intervals";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,6 +15,7 @@ import {
   updateActivityStreams,
   upsertActivities,
 } from "@/lib/storage";
+import { fetchStravaActivityStreams } from "@/lib/strava";
 import type { SyncJob, User } from "@/lib/types";
 
 const incrementalOverlapDays = 14;
@@ -274,19 +276,50 @@ export async function handleIntervalsStreamBackfillJob(user: User, job: SyncJob)
     throw new Error("请先填写 intervals.icu API key。");
   }
 
-  // 跳过已有 streams 的
   const existing = await getActivity(activityId);
   if (!existing) return { skipped: "活动不存在" };
   const existingStreams = existing.rawStreamsJson as Record<string, unknown> | undefined;
-  if (existingStreams && Object.keys(existingStreams).length > 0) {
+  if (existingStreams && hasUsefulStream(existingStreams)) {
     return { skipped: "已存在 streams" };
   }
 
   const apiKey = decryptSecret(user.intervalsApiKeyEncrypted);
-  const streams = await fetchIntervalsActivityStreams(externalActivityId, apiKey);
-  if (!streams || Object.keys(streams).length === 0) {
-    return { skipped: "intervals 未返回 streams" };
+  let streams = await fetchIntervalsActivityStreams(externalActivityId, apiKey);
+
+  // Strava API fallback
+  if (!hasUsefulStream(streams) && user.stravaAccessTokenEncrypted) {
+    const stravaId = extractStravaId({
+      externalActivityId,
+      rawSummaryJson: existing.rawSummaryJson,
+    });
+    if (stravaId) {
+      const tokenInfo = await ensureStravaToken(user);
+      if (tokenInfo) {
+        try {
+          streams = await fetchStravaActivityStreams(stravaId, tokenInfo.accessToken);
+        } catch {
+          // Strava fallback failure is non-fatal
+        }
+      }
+    }
   }
+
+  // Web session fallback: trigger Strava reload on ICU then retry
+  if (!hasUsefulStream(streams) && user.intervalsEmailEncrypted && user.intervalsPasswordEncrypted) {
+    try {
+      const { reloadStravaActivitiesViaWeb } = await import("@/lib/intervals-web");
+      await reloadStravaActivitiesViaWeb(user, 3);
+      await new Promise((r) => setTimeout(r, 2000));
+      streams = await fetchIntervalsActivityStreams(externalActivityId, apiKey);
+    } catch {
+      // web session fallback failure is non-fatal
+    }
+  }
+
+  if (!hasUsefulStream(streams)) {
+    throw new Error(`所有数据源均未返回有效 streams (attempt ${job.attempts + 1})`);
+  }
+
   await updateActivityStreams(activityId, streams);
-  return { fetched: true, keys: Object.keys(streams) };
+  return { fetched: true, keys: Object.keys(streams!) };
 }

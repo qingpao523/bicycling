@@ -35,7 +35,7 @@ export interface BackfillOptions {
   onProgress?: (progress: BackfillProgress) => void;
 }
 
-function hasUsefulStream(streams: unknown): boolean {
+export function hasUsefulStream(streams: unknown): boolean {
   if (!streams || typeof streams !== "object") return false;
   const s = streams as Record<string, unknown>;
   const fields = ["watts", "heartrate", "cadence", "altitude"];
@@ -49,7 +49,7 @@ function hasUsefulStream(streams: unknown): boolean {
  * Extract Strava numeric activity ID from an intervals.icu-sourced activity.
  * intervals.icu uses "iXXXXXXXX" as ID where XXXXXXXX is the Strava activity ID.
  */
-function extractStravaId(activity: { externalActivityId: string; rawSummaryJson: unknown }): string | null {
+export function extractStravaId(activity: { externalActivityId: string; rawSummaryJson: unknown }): string | null {
   const raw = activity.rawSummaryJson as Record<string, unknown> | null;
   const explicit = raw?.strava_id ?? raw?.stravaActivityId;
   if (explicit) return String(explicit);
@@ -71,7 +71,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Refresh Strava access token if needed
  */
-async function ensureStravaToken(user: User): Promise<{ accessToken: string; updated: boolean } | null> {
+export async function ensureStravaToken(user: User): Promise<{ accessToken: string; updated: boolean } | null> {
   if (!user.stravaAccessTokenEncrypted || !user.stravaRefreshTokenEncrypted) return null;
 
   const now = new Date();
