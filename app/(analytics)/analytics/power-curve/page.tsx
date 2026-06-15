@@ -11,10 +11,10 @@ export default async function PowerCurvePage() {
   const weightKg = user.weightKg ?? user.syncedWeightKg;
 
   const now = new Date();
-  const d42 = new Date(now); d42.setDate(d42.getDate() - 42);
+  const d90 = new Date(now); d90.setDate(d90.getDate() - 90);
 
   const curveAll = buildPowerCurve(activities, weightKg ?? undefined);
-  const curve42 = buildPowerCurve(activities, weightKg ?? undefined, d42);
+  const curve90 = buildPowerCurve(activities, weightKg ?? undefined, d90);
 
   // Combine data into a table-friendly format
   const durations = [
@@ -33,12 +33,12 @@ export default async function PowerCurvePage() {
 
   const tableData = durations.map(({ seconds, label }) => {
     const bestAll = curveAll.curve.find((p) => p.duration === seconds);
-    const best42 = curve42.curve.find((p) => p.duration === seconds);
+    const bestRecent = curve90.curve.find((p) => p.duration === seconds);
     return {
       seconds,
       label,
       bestAll: bestAll?.power ?? null,
-      best42: best42?.power ?? null,
+      bestRecent: bestRecent?.power ?? null,
       wpkgAll: bestAll?.wpkg ?? null,
       activityName: bestAll?.activityName ?? null,
       activityDate: bestAll?.activityDate ?? null,
@@ -64,7 +64,7 @@ export default async function PowerCurvePage() {
         <PowerCurveDetailView
           tableData={tableData}
           curveAll={curveAll.curve.map((p) => ({ duration: p.duration, power: p.power, wpkg: p.wpkg ?? null }))}
-          curve42={curve42.curve.map((p) => ({ duration: p.duration, power: p.power, wpkg: p.wpkg ?? null }))}
+          curveRecent={curve90.curve.map((p) => ({ duration: p.duration, power: p.power, wpkg: p.wpkg ?? null }))}
           weightKg={weightKg ?? null}
         />
       )}

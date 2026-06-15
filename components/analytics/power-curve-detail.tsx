@@ -23,7 +23,7 @@ interface TableRow {
   seconds: number;
   label: string;
   bestAll: number | null;
-  best42: number | null;
+  bestRecent: number | null;
   wpkgAll: number | null;
   activityName: string | null;
   activityDate: string | null;
@@ -32,7 +32,7 @@ interface TableRow {
 interface Props {
   tableData: TableRow[];
   curveAll: CurvePoint[];
-  curve42: CurvePoint[];
+  curveRecent: CurvePoint[];
   weightKg: number | null;
 }
 
@@ -88,29 +88,29 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }: Props) {
+export function PowerCurveDetailView({ tableData, curveAll, curveRecent, weightKg }: Props) {
   const [mode, setMode] = useState<"watts" | "wpkg">("watts");
 
   // Merge curves for chart
   const chartData = useMemo(() => {
     const allDurations = new Set<number>();
     curveAll.forEach((p) => allDurations.add(p.duration));
-    curve42.forEach((p) => allDurations.add(p.duration));
+    curveRecent.forEach((p) => allDurations.add(p.duration));
 
     return Array.from(allDurations)
       .sort((a, b) => a - b)
       .map((duration) => {
         const all = curveAll.find((p) => p.duration === duration);
-        const d42 = curve42.find((p) => p.duration === duration);
+        const recent = curveRecent.find((p) => p.duration === duration);
         const point: Record<string, number | null> = { duration };
         if (all) point["历史最佳"] = mode === "wpkg" && all.wpkg ? all.wpkg : all.power;
-        if (d42) point["最近42天"] = mode === "wpkg" && d42.wpkg ? d42.wpkg : d42.power;
+        if (recent) point["近 90 天"] = mode === "wpkg" && recent.wpkg ? recent.wpkg : recent.power;
         return point;
       });
-  }, [curveAll, curve42, mode]);
+  }, [curveAll, curveRecent, mode]);
 
   const maxY = useMemo(() => {
-    const vals = chartData.flatMap((d) => [d["历史最佳"], d["最近42天"]]).filter((v): v is number => typeof v === "number");
+    const vals = chartData.flatMap((d) => [d["历史最佳"], d["近 90 天"]]).filter((v): v is number => typeof v === "number");
     return vals.length ? Math.max(...vals) : 1000;
   }, [chartData]);
 
@@ -147,7 +147,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
               <tr style={{ borderBottom: "2px solid var(--line)" }}>
                 <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时间</th>
                 <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>历史最佳</th>
-                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>近 42 天</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>近 90 天</th>
                 {weightKg ? (
                   <>
                     <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>W/kg</th>
@@ -171,7 +171,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
                       {row.bestAll ? `${row.bestAll}${mode === "wpkg" && row.wpkgAll ? ` (${row.wpkgAll.toFixed(2)})` : ""}` : "--"}
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--muted)" }}>
-                      {row.best42 ?? "--"}
+                      {row.bestRecent ?? "--"}
                     </td>
                     {weightKg ? (
                       <>
@@ -211,7 +211,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
           <h2>功率曲线</h2>
           <div style={{ display: "flex", gap: 16, fontSize: "0.82rem" }}>
             <span style={{ color: "#ea580c" }}>● 历史最佳</span>
-            <span style={{ color: "#1f57d6" }}>● 最近 42 天</span>
+            <span style={{ color: "#1f57d6" }}>● 近 90 天</span>
           </div>
         </div>
 
@@ -245,7 +245,7 @@ export function PowerCurveDetailView({ tableData, curveAll, curve42, weightKg }:
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               <Line type="monotone" dataKey="历史最佳" stroke="#ea580c" strokeWidth={2.5} dot={false} connectNulls />
-              <Line type="monotone" dataKey="最近42天" stroke="#1f57d6" strokeWidth={2} dot={false} connectNulls strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="近 90 天" stroke="#1f57d6" strokeWidth={2} dot={false} connectNulls strokeDasharray="4 2" />
             </LineChart>
           </ResponsiveContainer>
         </div>

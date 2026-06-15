@@ -20,7 +20,7 @@ interface PowerData {
 interface Props {
   classification: { type: string; confidence: number };
   scores: { neuromuscular: number; anaerobic: number; vo2max: number; threshold: number };
-  previousScores: { neuromuscular: number; anaerobic: number; vo2max: number; threshold: number };
+  recentScores: { neuromuscular: number; anaerobic: number; vo2max: number; threshold: number };
   powers: {
     neuromuscular: PowerData | null;
     anaerobic: PowerData | null;
@@ -50,7 +50,7 @@ function formatRelativeTime(iso: string): string {
   return date.toLocaleDateString("zh-CN");
 }
 
-export function PowerProfileDetailView({ classification, scores, previousScores, powers, suggestion }: Props) {
+export function PowerProfileDetailView({ classification, scores, recentScores, powers, suggestion }: Props) {
   const [aiClass, setAiClass] = useState<AiClassificationState | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
 
@@ -80,10 +80,10 @@ export function PowerProfileDetailView({ classification, scores, previousScores,
     : { type: classification.type, confidence: classification.confidence, source: "rules" as const };
 
   const radarData = [
-    { dimension: "神经肌肉 (5s)", 当前: scores.neuromuscular, 上个周期: previousScores.neuromuscular, fullMark: 100 },
-    { dimension: "无氧 (1min)", 当前: scores.anaerobic, 上个周期: previousScores.anaerobic, fullMark: 100 },
-    { dimension: "VO2max (5min)", 当前: scores.vo2max, 上个周期: previousScores.vo2max, fullMark: 100 },
-    { dimension: "阈值 (20min)", 当前: scores.threshold, 上个周期: previousScores.threshold, fullMark: 100 },
+    { dimension: "神经肌肉 (5s)", 全历史: scores.neuromuscular, "近 90 天": recentScores.neuromuscular, fullMark: 100 },
+    { dimension: "无氧 (1min)", 全历史: scores.anaerobic, "近 90 天": recentScores.anaerobic, fullMark: 100 },
+    { dimension: "VO2max (5min)", 全历史: scores.vo2max, "近 90 天": recentScores.vo2max, fullMark: 100 },
+    { dimension: "阈值 (20min)", 全历史: scores.threshold, "近 90 天": recentScores.threshold, fullMark: 100 },
   ];
 
   const dimensions = [
@@ -94,7 +94,7 @@ export function PowerProfileDetailView({ classification, scores, previousScores,
   ];
 
   function trendFor(key: keyof typeof scores) {
-    const diff = scores[key] - previousScores[key];
+    const diff = recentScores[key] - scores[key];
     if (diff > 3) return { icon: ArrowUp, color: "var(--ok)", text: `+${diff.toFixed(0)}` };
     if (diff < -3) return { icon: ArrowDown, color: "var(--danger)", text: `${diff.toFixed(0)}` };
     return { icon: Minus, color: "var(--muted)", text: "持平" };
@@ -155,8 +155,8 @@ export function PowerProfileDetailView({ classification, scores, previousScores,
         <div className="analytics-card-header">
           <h2>四维能力雷达图</h2>
           <div style={{ display: "flex", gap: 16, fontSize: "0.82rem" }}>
-            <span style={{ color: "#1f57d6" }}>● 当前（近90天）</span>
-            <span style={{ color: "#9ca3af" }}>● 上个周期（90-180天）</span>
+            <span style={{ color: "#1f57d6" }}>● 全历史最佳</span>
+            <span style={{ color: "#9ca3af" }}>● 近 90 天</span>
           </div>
         </div>
         <div className="analytics-chart-container" style={{ height: 380 }}>
@@ -166,16 +166,16 @@ export function PowerProfileDetailView({ classification, scores, previousScores,
               <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12, fill: "#555" }} />
               <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#999" }} />
               <Radar
-                name="上个周期"
-                dataKey="上个周期"
+                name="近 90 天"
+                dataKey="近 90 天"
                 stroke="#9ca3af"
                 fill="#9ca3af"
                 fillOpacity={0.15}
                 strokeDasharray="4 2"
               />
               <Radar
-                name="当前"
-                dataKey="当前"
+                name="全历史"
+                dataKey="全历史"
                 stroke="#1f57d6"
                 fill="#1f57d6"
                 fillOpacity={0.35}

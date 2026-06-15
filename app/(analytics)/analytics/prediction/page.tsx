@@ -23,10 +23,11 @@ export default async function PredictionPage() {
     return type.includes("ride") || type.includes("bike") || type.includes("cycl") || type.includes("virtual") || a.avgPower !== undefined;
   });
 
-  // ===== FTP Estimation (current - last 90 days) =====
+  // ===== FTP Estimation (all-time + last 90 days) =====
   const now = new Date();
   const d90 = new Date(now); d90.setDate(d90.getDate() - 90);
   const recent90 = cycling.filter((a) => new Date(a.startTime) >= d90);
+  const ftpEstimateAll = estimateFtpFromActivities(cycling, weightKg ?? undefined);
   const ftpEstimate = estimateFtpFromActivities(recent90, weightKg ?? undefined);
 
   // FTP progression timeline
@@ -57,6 +58,7 @@ export default async function PredictionPage() {
         weightKg={weightKg ?? null}
         maxHr={maxHr ?? null}
         vo2max={vo2max}
+        ftpEstimateAll={ftpEstimateAll}
         ftpEstimate={ftpEstimate}
         progression={progression}
         prediction={predictionResult}

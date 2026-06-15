@@ -57,6 +57,7 @@ interface Props {
   weightKg: number | null;
   maxHr: number | null;
   vo2max: number | null;
+  ftpEstimateAll: FtpEstimate;
   ftpEstimate: FtpEstimate;
   progression: FtpProgressPoint[];
   prediction: PredictionResult | null;
@@ -86,7 +87,7 @@ function formatRelative(iso: string | null): string {
   return d.toLocaleDateString("zh-CN");
 }
 
-export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpEstimate, progression, prediction }: Props) {
+export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpEstimateAll, ftpEstimate, progression, prediction }: Props) {
   const [report, setReport] = useState<AiReport | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -145,6 +146,13 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
     });
   }
 
+  const confidenceColorAll =
+    ftpEstimateAll.confidence === "high" ? "var(--ok)" :
+    ftpEstimateAll.confidence === "medium" ? "var(--accent)" : "var(--cta)";
+  const confidenceLabelAll =
+    ftpEstimateAll.confidence === "high" ? "高置信度" :
+    ftpEstimateAll.confidence === "medium" ? "中等置信度" : "低置信度";
+
   const confidenceColor =
     ftpEstimate.confidence === "high" ? "var(--ok)" :
     ftpEstimate.confidence === "medium" ? "var(--accent)" : "var(--cta)";
@@ -152,8 +160,8 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
     ftpEstimate.confidence === "high" ? "高置信度" :
     ftpEstimate.confidence === "medium" ? "中等置信度" : "低置信度";
 
-  const mismatchPct = currentFtp && ftpEstimate.ftp > 0 ?
-    Math.abs((ftpEstimate.ftp - currentFtp) / currentFtp) * 100 : 0;
+  const mismatchPct = currentFtp && ftpEstimateAll.ftp > 0 ?
+    Math.abs((ftpEstimateAll.ftp - currentFtp) / currentFtp) * 100 : 0;
 
   return (
     <>
@@ -164,8 +172,17 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
           <div className="stat-value">{currentFtp ?? "--"} <span style={{ fontSize: "0.5em" }}>W</span></div>
           {currentFtp && weightKg && <div className="stat-change stat-change--flat">{(currentFtp / weightKg).toFixed(2)} W/kg</div>}
         </div>
+        <div className="analytics-stat-card" style={{ borderLeft: `4px solid ${confidenceColorAll}` }}>
+          <div className="eyebrow">全历史 eFTP</div>
+          <div className="stat-value" style={{ color: "var(--accent)" }}>
+            {ftpEstimateAll.ftp || "--"} <span style={{ fontSize: "0.5em" }}>W</span>
+          </div>
+          <div className="stat-change stat-change--flat" style={{ color: confidenceColorAll }}>
+            {confidenceLabelAll} · {ftpEstimateAll.method}
+          </div>
+        </div>
         <div className="analytics-stat-card" style={{ borderLeft: `4px solid ${confidenceColor}` }}>
-          <div className="eyebrow">估算 FTP（近 90 天）</div>
+          <div className="eyebrow">近 90 天 eFTP</div>
           <div className="stat-value" style={{ color: "var(--accent)" }}>
             {ftpEstimate.ftp || "--"} <span style={{ fontSize: "0.5em" }}>W</span>
           </div>
@@ -193,14 +210,14 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
       </div>
 
       {/* FTP mismatch warning */}
-      {currentFtp && ftpEstimate.ftp > 0 && mismatchPct > 5 && (
+      {currentFtp && ftpEstimateAll.ftp > 0 && mismatchPct > 5 && (
         <div className="analytics-card" style={{ borderLeft: `4px solid var(--cta)`, background: "rgba(245,158,11,0.04)" }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <AlertCircle size={20} style={{ color: "var(--cta)", flexShrink: 0 }} />
             <div>
               <strong>FTP 设置值与估算值不一致</strong>
               <p style={{ margin: "4px 0 0", fontSize: "0.88rem", color: "var(--muted)" }}>
-                你当前设置的 FTP 为 <strong>{currentFtp}W</strong>，但基于近 90 天最佳功率估算应为 <strong style={{ color: "var(--accent)" }}>{ftpEstimate.ftp}W</strong>
+                你当前设置的 FTP 为 <strong>{currentFtp}W</strong>，但基于全历史最佳功率估算应为 <strong style={{ color: "var(--accent)" }}>{ftpEstimateAll.ftp}W</strong>
                 （差距 {mismatchPct.toFixed(1)}%）。建议更新你的 FTP 设置以获得更准确的训练负荷计算。
               </p>
             </div>
@@ -209,7 +226,7 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
       )}
 
       {/* Multi-duration eFTP Breakdown Table */}
-      {ftpEstimate.allEstimates.length > 0 && (
+      {ftpEstimateAll.allEstimates.length > 0 && (
         <div className="analytics-card">
           <div className="analytics-card-header" style={{ flexWrap: "wrap", gap: 8 }}>
             <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -222,7 +239,7 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
               </span>
             </h2>
             <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
-              共 {ftpEstimate.dataQuality.durationsAvailable} 个时长点 · {ftpEstimate.dataQuality.activitiesWithValidPower} 条有效活动
+              全历史 {ftpEstimateAll.dataQuality.activitiesWithValidPower} 条 · 近 90 天 {ftpEstimate.dataQuality.activitiesWithValidPower} 条
             </span>
           </div>
           <div style={{ overflowX: "auto" }}>
@@ -230,35 +247,39 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
               <thead>
                 <tr style={{ borderBottom: "2px solid var(--line)" }}>
                   <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>时长</th>
-                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>最佳功率</th>
+                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>全历史最佳</th>
+                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>近 90 天</th>
                   <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>系数</th>
-                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>eFTP</th>
-                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>W/kg</th>
+                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>全历史 eFTP</th>
+                  <th style={{ textAlign: "right", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>近 90 天 eFTP</th>
                   <th style={{ textAlign: "left", padding: "10px 12px", color: "var(--muted)", fontWeight: 500 }}>来源活动</th>
                 </tr>
               </thead>
               <tbody>
-                {ftpEstimate.allEstimates.map((e) => {
-                  const isBest = e.estimatedFtp === ftpEstimate.ftp;
+                {ftpEstimateAll.allEstimates.map((e) => {
+                  const isBestAll = e.estimatedFtp === ftpEstimateAll.ftp;
+                  const recentMatch = ftpEstimate.allEstimates.find((r) => r.duration === e.duration);
+                  const isBestRecent = recentMatch && recentMatch.estimatedFtp === ftpEstimate.ftp;
                   return (
                     <tr
                       key={e.duration}
                       style={{
                         borderBottom: "1px solid var(--line)",
-                        background: isBest ? "rgba(31,87,214,0.05)" : "transparent",
+                        background: isBestAll ? "rgba(31,87,214,0.05)" : "transparent",
                       }}
                     >
-                      <td style={{ padding: "10px 12px", fontWeight: isBest ? 600 : 400 }}>
-                        {isBest && <span style={{ display: "inline-block", width: 3, height: 14, background: "var(--accent)", marginRight: 8, verticalAlign: "middle" }} />}
+                      <td style={{ padding: "10px 12px", fontWeight: isBestAll ? 600 : 400 }}>
+                        {isBestAll && <span style={{ display: "inline-block", width: 3, height: 14, background: "var(--accent)", marginRight: 8, verticalAlign: "middle" }} />}
                         {e.durationLabel}
                       </td>
-                      <td style={{ padding: "10px 12px", textAlign: "right" }}>{e.maxPower} W</td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600 }}>{e.maxPower} W</td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--muted)" }}>{recentMatch?.maxPower ?? "--"}{recentMatch ? " W" : ""}</td>
                       <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--muted)" }}>× {e.multiplier}</td>
-                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: isBest ? "var(--accent)" : "var(--text)", fontSize: "1rem" }}>
+                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: isBestAll ? "var(--accent)" : "var(--text)", fontSize: "1rem" }}>
                         {e.estimatedFtp}
                       </td>
-                      <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--muted)" }}>
-                        {weightKg ? (e.estimatedFtp / weightKg).toFixed(2) : "--"}
+                      <td style={{ padding: "10px 12px", textAlign: "right", color: isBestRecent ? "var(--accent)" : "var(--muted)" , fontWeight: isBestRecent ? 700 : 400 }}>
+                        {recentMatch?.estimatedFtp ?? "--"}
                       </td>
                       <td style={{ padding: "10px 12px", color: "var(--muted)", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.82rem" }}>
                         {e.sourceActivityName ?? "--"}
@@ -277,36 +298,36 @@ export function PredictionDetailView({ currentFtp, weightKg, maxHr, vo2max, ftpE
       )}
 
       {/* Critical Power Model */}
-      {ftpEstimate.criticalPower && (
+      {ftpEstimateAll.criticalPower && (
         <div className="analytics-card">
           <div className="analytics-card-header">
             <h2>Critical Power 模型</h2>
-            <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>基于 P(t) = CP + W'/t</span>
+            <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>全历史 · P(t) = CP + W&apos;/t</span>
           </div>
           <div className="cp-model-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
             <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: 10 }}>
               <div className="eyebrow">CP 临界功率</div>
-              <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--accent)" }}>{ftpEstimate.criticalPower.cp} W</div>
+              <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--accent)" }}>{ftpEstimateAll.criticalPower.cp} W</div>
               <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: 4 }}>
-                {weightKg ? `${(ftpEstimate.criticalPower.cp / weightKg).toFixed(2)} W/kg · ` : ""}
+                {weightKg ? `${(ftpEstimateAll.criticalPower.cp / weightKg).toFixed(2)} W/kg · ` : ""}
                 理论上可持续无限时长的最大功率
               </div>
             </div>
             <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: 10 }}>
-              <div className="eyebrow">W' 无氧储备</div>
-              <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--ok)" }}>{(ftpEstimate.criticalPower.wPrime / 1000).toFixed(1)} kJ</div>
+              <div className="eyebrow">W&apos; 无氧储备</div>
+              <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--ok)" }}>{(ftpEstimateAll.criticalPower.wPrime / 1000).toFixed(1)} kJ</div>
               <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: 4 }}>
                 高于 CP 时可消耗的总能量
               </div>
             </div>
-            {ftpEstimate.criticalPower.rSquared !== undefined && (
+            {ftpEstimateAll.criticalPower.rSquared !== undefined && (
               <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: 10 }}>
                 <div className="eyebrow">模型拟合度</div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, color: ftpEstimate.criticalPower.rSquared >= 0.9 ? "var(--ok)" : ftpEstimate.criticalPower.rSquared >= 0.7 ? "var(--cta)" : "var(--danger)" }}>
-                  R² = {ftpEstimate.criticalPower.rSquared}
+                <div style={{ fontSize: "1.6rem", fontWeight: 700, color: ftpEstimateAll.criticalPower.rSquared >= 0.9 ? "var(--ok)" : ftpEstimateAll.criticalPower.rSquared >= 0.7 ? "var(--cta)" : "var(--danger)" }}>
+                  R² = {ftpEstimateAll.criticalPower.rSquared}
                 </div>
                 <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: 4 }}>
-                  {ftpEstimate.criticalPower.rSquared >= 0.9 ? "拟合极好" : ftpEstimate.criticalPower.rSquared >= 0.7 ? "拟合良好" : "拟合一般，需要更多数据"}
+                  {ftpEstimateAll.criticalPower.rSquared >= 0.9 ? "拟合极好" : ftpEstimateAll.criticalPower.rSquared >= 0.7 ? "拟合良好" : "拟合一般，需要更多数据"}
                 </div>
               </div>
             )}

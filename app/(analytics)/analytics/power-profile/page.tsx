@@ -59,23 +59,21 @@ export default async function PowerProfilePage() {
     );
   }
 
-  // Calculate curves for current (last 90 days) vs previous (90-180 days)
   const now = new Date();
   const d90 = new Date(now); d90.setDate(d90.getDate() - 90);
-  const d180 = new Date(now); d180.setDate(d180.getDate() - 180);
 
-  const curveCurrent = buildPowerCurve(activities, weightKg, d90);
-  const curvePrevious = buildPowerCurve(activities, weightKg, d180, d90);
+  const curveAll = buildPowerCurve(activities, weightKg);
+  const curveRecent = buildPowerCurve(activities, weightKg, d90);
 
-  const p5s = curveCurrent.curve.find((p) => p.duration === 5);
-  const p1m = curveCurrent.curve.find((p) => p.duration === 60);
-  const p5m = curveCurrent.curve.find((p) => p.duration === 300);
-  const p20m = curveCurrent.curve.find((p) => p.duration === 1200);
+  const p5s = curveAll.curve.find((p) => p.duration === 5);
+  const p1m = curveAll.curve.find((p) => p.duration === 60);
+  const p5m = curveAll.curve.find((p) => p.duration === 300);
+  const p20m = curveAll.curve.find((p) => p.duration === 1200);
 
-  const p5sPrev = curvePrevious.curve.find((p) => p.duration === 5);
-  const p1mPrev = curvePrevious.curve.find((p) => p.duration === 60);
-  const p5mPrev = curvePrevious.curve.find((p) => p.duration === 300);
-  const p20mPrev = curvePrevious.curve.find((p) => p.duration === 1200);
+  const p5sRecent = curveRecent.curve.find((p) => p.duration === 5);
+  const p1mRecent = curveRecent.curve.find((p) => p.duration === 60);
+  const p5mRecent = curveRecent.curve.find((p) => p.duration === 300);
+  const p20mRecent = curveRecent.curve.find((p) => p.duration === 1200);
 
   const hasData = p5s || p1m || p5m || p20m;
 
@@ -86,11 +84,11 @@ export default async function PowerProfilePage() {
     threshold: calcScore(p20m?.wpkg, 1200),
   };
 
-  const previousScores = {
-    neuromuscular: calcScore(p5sPrev?.wpkg, 5),
-    anaerobic: calcScore(p1mPrev?.wpkg, 60),
-    vo2max: calcScore(p5mPrev?.wpkg, 300),
-    threshold: calcScore(p20mPrev?.wpkg, 1200),
+  const recentScores = {
+    neuromuscular: calcScore(p5sRecent?.wpkg, 5),
+    anaerobic: calcScore(p1mRecent?.wpkg, 60),
+    vo2max: calcScore(p5mRecent?.wpkg, 300),
+    threshold: calcScore(p20mRecent?.wpkg, 1200),
   };
 
   const classification = classifyRider(scores);
@@ -109,7 +107,7 @@ export default async function PowerProfilePage() {
     <div>
       <div className="analytics-page-header">
         <h1>功率形态</h1>
-        <p>骑手类型分析与能力评估{curveCurrent.skippedCount > 0 ? ` · ${curveCurrent.skippedCount} 条活动无功率数据` : ""}</p>
+        <p>骑手类型分析与能力评估{curveAll.skippedCount > 0 ? ` · ${curveAll.skippedCount} 条活动无功率数据` : ""}</p>
       </div>
 
       {!hasData ? (
@@ -121,7 +119,7 @@ export default async function PowerProfilePage() {
         <PowerProfileDetailView
           classification={classification}
           scores={scores}
-          previousScores={previousScores}
+          recentScores={recentScores}
           powers={{
             neuromuscular: p5s ? { power: p5s.power, wpkg: p5s.wpkg ?? null } : null,
             anaerobic: p1m ? { power: p1m.power, wpkg: p1m.wpkg ?? null } : null,

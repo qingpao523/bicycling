@@ -36,6 +36,12 @@ function slimActivity(a: NormalizedActivity): NormalizedActivity {
       sport_type: rawSummary.sport_type,
       trainer: rawSummary.trainer,
       calories: rawSummary.calories,
+      icu_pm_ftp_watts: rawSummary.icu_pm_ftp_watts,
+      icu_pm_ftp_secs: rawSummary.icu_pm_ftp_secs,
+      icu_pm_p_max: rawSummary.icu_pm_p_max,
+      icu_achievements: rawSummary.icu_achievements,
+      interval_summary: rawSummary.interval_summary,
+      max_watts: rawSummary.max_watts,
     } as Record<string, unknown>,
     rawStreamsJson: rawStreams.watts
       ? ({ watts: rawStreams.watts } as Record<string, unknown>)
