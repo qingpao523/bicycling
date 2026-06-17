@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "=== 1/5 查找网络接口 ==="
-IFACE=$(networksetup -listallnetworkservices | grep -v '^\*' | head -1)
+IFACE=$(networksetup -listallnetworkservices | grep -v '^\*' | tail -n +2 | head -1)
 echo "使用接口: $IFACE"
 
 echo "=== 2/5 切换 DNS 到 1.1.1.1 / 8.8.8.8 ==="
