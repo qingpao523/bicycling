@@ -1,7 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-TOKEN="eyJhIjoiNGZiYWJlY2YwZjQ0NDQ3ZWUwOGVhY2JhYTM0NjA3ODUiLCJ0IjoiN2FmMzEwYzctNDY1My00YjgyLTljZWMtMjM1NGZhNDUxMWVjIiwicyI6IlptUXdPVEk0TWpNdE9XUTVNQzAwWWpneExUaDNPVFV0T0dJM056RXdaak00WkdRNSJ9"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TOKEN_FILE="$PROJECT_DIR/data/manager/cloudflared-token.txt"
+
+if [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+  TOKEN="$CLOUDFLARE_TUNNEL_TOKEN"
+elif [ -r "$TOKEN_FILE" ]; then
+  TOKEN="$(tr -d '[:space:]' < "$TOKEN_FILE")"
+else
+  echo "缺少 Cloudflare tunnel token。请设置 CLOUDFLARE_TUNNEL_TOKEN，或写入 $TOKEN_FILE"
+  exit 1
+fi
 
 echo "=== 1/4 卸载旧服务 ==="
 sudo cloudflared service uninstall 2>/dev/null || true

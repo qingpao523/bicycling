@@ -27,6 +27,7 @@ HOSTNAME=127.0.0.1
 # Cloudflare Tunnel
 CLOUDFLARE_TUNNEL_TOKEN=你的tunnel token
 CLOUDFLARE_TUNNEL_URL=https://你的域名.com
+CLOUDFLARED_METRICS=127.0.0.1:20241
 ```
 
 生成随机密钥：
@@ -49,22 +50,28 @@ brew install cloudflared
 4. 复制 tunnel token，填入 `CLOUDFLARE_TUNNEL_TOKEN`
 5. 配置 Public Hostname：你的域名 → `http://localhost:3000`
 
-## 4. 启动
+## 4. 启动守护
 
-用系统管家一键操作：
+推荐安装 launchd 守护，它会用 `scripts/cloudflared-guard.sh` 启动 cloudflared，并通过固定 metrics 端口检查 HA 连接数：
+
+```bash
+bash scripts/setup-launchd.sh
+```
+
+也可以用系统管家手动操作：
 
 - 打开系统管家 `http://127.0.0.1:3210`
-- 点击"启动公网入口"
+- 点击"启动 CF 公网入口"
 
 或手动：
 
 ```bash
-cloudflared tunnel run --token <你的token>
+cloudflared tunnel --protocol http2 --metrics 127.0.0.1:20241 run --token <你的token>
 ```
 
 ## 5. 看门狗自动恢复
 
-系统管家的看门狗每 60 秒巡检一次，如果发现 cloudflared 进程挂了会自动拉起。
+系统管家的看门狗会检查 `cloudflared_tunnel_ha_connections`。如果 connector 掉线或 HA 连接数为 0，会尝试恢复 CF 公网入口。launchd guard 也会独立巡检并重启 cloudflared，避免 1033。
 
 ## 6. 重要注意事项
 

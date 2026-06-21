@@ -790,7 +790,7 @@ AI 报告与 AI 聊天都支持 stream 模式。
 - 启动 / 停止 / 重启开发版
 - 重新构建线上版
 - 发布开发版到线上版
-- 管理 ngrok
+- 管理 Cloudflare Tunnel
 - 健康检查
 - 看门狗自动拉起
 - 自动同步定时触发
@@ -820,21 +820,22 @@ AI 报告与 AI 聊天都支持 stream 模式。
 3. 更新 productionVersion / lastPublishedAt
 4. 重启线上版
 
-### ngrok 能力
+### Cloudflare Tunnel 能力
 支持：
-- 启动 ngrok
-- 停止 ngrok
+- 启动 CF 公网入口
+- 停止 CF 公网入口
 - 查看公网 URL
-- 查看 ngrok 日志
-- 只将 ngrok 绑定线上版
+- 查看 cloudflared 日志
+- 通过固定 metrics 端口检查 HA 连接数
+- 只将 Cloudflare Tunnel 绑定线上版
 
 ### 看门狗
 每 60 秒执行一次：
 - 检查线上版是否存活
 - 检查健康接口是否正常
 - 连续失败 3 次时重启线上版
-- 检查 ngrok 是否掉线
-- 掉线时尝试自动恢复
+- 检查 Cloudflare connector 是否掉线或 HA 连接数为 0
+- 异常时尝试自动恢复 CF 公网入口
 
 ### 自动同步 tick
 每 60 秒执行一次：
@@ -856,7 +857,7 @@ AI 报告与 AI 聊天都支持 stream 模式。
 - 版本号
 - 发布入口
 - 看门狗开关
-- ngrok 状态
+- Cloudflare Tunnel 状态
 - 日志查看
 - 开机自启状态
 - 用户列表

@@ -1,10 +1,18 @@
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, createWriteStream, unlinkSync, cpSync, rmSync, symlinkSync, readdirSync } from "node:fs";
+import { accessSync, constants as fsConstants, existsSync, mkdirSync, readFileSync, writeFileSync, createWriteStream, unlinkSync, cpSync, rmSync, symlinkSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { PrismaClient } from "@prisma/client";
+import {
+  DEFAULT_CLOUDFLARED_METRICS,
+  buildCloudflaredArgs,
+  chooseWritableLogPath,
+  isProcessRunning,
+  parseCloudflaredPids,
+  parseHaConnections,
+} from "./cloudflared-supervisor.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(scriptDir, "..");
@@ -14,12 +22,19 @@ const runtimeDir = path.join(projectDir, "data", "manager");
 const statePath = path.join(runtimeDir, "state.json");
 const productionPidPath = path.join(runtimeDir, "app.pid");
 const developmentPidPath = path.join(runtimeDir, "dev-app.pid");
+const ngrokPidPath = path.join(runtimeDir, "ngrok.pid");
 const cloudflaredPidPath = path.join(runtimeDir, "cloudflared.pid");
+const cloudflaredTokenPath = path.join(runtimeDir, "cloudflared-token.txt");
+const cloudflaredLogPath = path.join(runtimeDir, "cloudflared.log");
+const cloudflaredErrPath = path.join(runtimeDir, "cloudflared-err.log");
+const legacyCloudflaredErrPath = path.join(runtimeDir, "cloudflared.err");
+const cloudflaredManagerLogPath = path.join(runtimeDir, "cloudflared-manager.log");
+const cloudflaredManagerErrPath = path.join(runtimeDir, "cloudflared-manager-err.log");
 const productionStdoutPath = path.join(runtimeDir, "app.stdout.log");
 const productionStderrPath = path.join(runtimeDir, "app.stderr.log");
 const developmentStdoutPath = path.join(runtimeDir, "dev-app.stdout.log");
 const developmentStderrPath = path.join(runtimeDir, "dev-app.stderr.log");
-const cloudflaredLogPath = path.join(runtimeDir, "cloudflared.log");
+const ngrokLogPath = path.join(runtimeDir, "ngrok.log");
 const envFilePath = path.join(projectDir, ".env.production.local");
 const launchAgentLabel = "com.flyaways.ai-cycling-manager";
 const launchAgentDir = path.join(process.env.HOME || "", "Library", "LaunchAgents");
@@ -47,12 +62,14 @@ const managerPort = Number(process.env.MANAGER_PORT || fileEnv.MANAGER_PORT || 3
 const appPort = Number(process.env.APP_PORT || fileEnv.APP_PORT || 3000);
 const developmentPort = Number(process.env.DEV_APP_PORT || fileEnv.DEV_APP_PORT || 3001);
 const appHostname = process.env.HOSTNAME || fileEnv.HOSTNAME || "127.0.0.1";
-const cloudflareBin = process.env.CLOUDFLARED_BIN || fileEnv.CLOUDFLARED_BIN || "cloudflared";
-const cloudflareTunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || fileEnv.CLOUDFLARE_TUNNEL_TOKEN || "";
+const ngrokBin = process.env.NGROK_BIN || fileEnv.NGROK_BIN || "ngrok";
+const cloudflaredBin = process.env.CLOUDFLARED_BIN || fileEnv.CLOUDFLARED_BIN || "/opt/homebrew/bin/cloudflared";
+const cloudflaredMetricsAddress = process.env.CLOUDFLARED_METRICS || fileEnv.CLOUDFLARED_METRICS || DEFAULT_CLOUDFLARED_METRICS;
 const cloudflareTunnelUrl = process.env.CLOUDFLARE_TUNNEL_URL || fileEnv.CLOUDFLARE_TUNNEL_URL || "";
 const productionHealthUrl = `http://127.0.0.1:${appPort}/api/system/health`;
 const developmentHealthUrl = `http://127.0.0.1:${developmentPort}/api/system/health`;
 const autoSyncUrl = `http://127.0.0.1:${appPort}/api/system/auto-sync`;
+const ngrokApiUrl = "http://127.0.0.1:4040/api/tunnels";
 const packageJson = JSON.parse(readFileSync(path.join(projectDir, "package.json"), "utf8"));
 process.env.DATABASE_URL ||= fileEnv.DATABASE_URL || `file:${path.join(projectDir, "data", "app.db")}`;
 const internalSyncSecret = process.env.INTERNAL_SYNC_SECRET || fileEnv.INTERNAL_SYNC_SECRET || "";
@@ -77,19 +94,27 @@ function readPid(filePath) {
   return Number(readFileSync(filePath, "utf8"));
 }
 
-function readCloudflaredPid() {
-  if (!existsSync(cloudflaredPidPath)) return null;
-  return Number(readFileSync(cloudflaredPidPath, "utf8"));
+function tailFile(filePath, lines = 80) {
+  if (!existsSync(filePath)) return "";
+  return readFileSync(filePath, "utf8").split(/\r?\n/).slice(-lines).join("\n");
 }
 
-function isProcessRunning(pid) {
-  if (!pid) return false;
+function canAppendFile(filePath) {
   try {
-    process.kill(pid, 0);
+    if (existsSync(filePath)) {
+      accessSync(filePath, fsConstants.W_OK);
+    } else {
+      accessSync(path.dirname(filePath), fsConstants.W_OK);
+    }
     return true;
   } catch {
     return false;
   }
+}
+
+function readNgrokPid() {
+  if (!existsSync(ngrokPidPath)) return null;
+  return Number(readFileSync(ngrokPidPath, "utf8"));
 }
 
 function getListeningPid(port) {
@@ -334,79 +359,62 @@ async function restartDevelopmentApp() {
   return startDevelopmentApp();
 }
 
-// ponytail: cloudflared 通过 `sudo cloudflared service install` 装成系统 LaunchDaemon，
-// 系统管家只负责监控和 kickstart，不自己 spawn 进程
-const cloudflaredServiceLabel = "com.cloudflare.cloudflared";
-
-function findCloudflaredPid() {
-  try {
-    const output = execFileSync("/usr/bin/pgrep", ["-f", "cloudflared.*tunnel"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (!output) return null;
-    const pid = Number(output.split(/\r?\n/)[0]);
-    return Number.isFinite(pid) ? pid : null;
-  } catch {
-    return null;
-  }
-}
-
-async function startCloudflared() {
-  const pid = findCloudflaredPid();
-  if (pid && isProcessRunning(pid)) {
-    return { ok: true, message: `cloudflared 已在运行 (pid ${pid})`, publicUrl: cloudflareTunnelUrl };
+async function startNgrok() {
+  const status = await getNgrokStatus();
+  if (status.running && status.publicUrl) {
+    return { ok: true, message: `ngrok already running: ${status.publicUrl}` };
   }
 
-  // 尝试通过 launchctl kickstart 拉起系统服务
-  try {
-    execFileSync("/bin/launchctl", ["kickstart", "-k", `system/${cloudflaredServiceLabel}`], {
-      encoding: "utf8",
-      stdio: "ignore",
-    });
-  } catch {
-    // kickstart 需要 sudo，降级为直接 spawn
-    if (!cloudflareTunnelToken) {
-      return { ok: false, message: "cloudflared 服务未安装且未配置 CLOUDFLARE_TUNNEL_TOKEN。请先运行: sudo cloudflared service install <token>" };
+  const existingPid = readNgrokPid();
+  if (isProcessRunning(existingPid)) {
+    await wait(1500);
+    const retried = await getNgrokStatus();
+    if (retried.running && retried.publicUrl) {
+      return { ok: true, message: `ngrok recovered: ${retried.publicUrl}` };
     }
-    const stdout = createWriteStream(cloudflaredLogPath, { flags: "a" });
-    const child = spawn(cloudflareBin, ["tunnel", "--protocol", "http2", "run", "--token", cloudflareTunnelToken], {
-      cwd: projectDir,
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: false,
-      env: { ...process.env, ...fileEnv },
-    });
-    child.stdout.pipe(stdout);
-    child.stderr.pipe(stdout);
-    child.unref();
-    writeFileSync(cloudflaredPidPath, String(child.pid), "utf8");
   }
 
-  for (let attempt = 0; attempt < 15; attempt += 1) {
-    await wait(1000);
-    const newPid = findCloudflaredPid();
-    if (newPid && isProcessRunning(newPid)) {
+  const stdout = createWriteStream(ngrokLogPath, { flags: "a" });
+  const child = spawn(ngrokBin, ["http", String(appPort)], {
+    cwd: projectDir,
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+    env: {
+      ...process.env,
+      ...fileEnv,
+    },
+  });
+
+  child.stdout.pipe(stdout);
+  child.stderr.pipe(stdout);
+  child.unref();
+  writeFileSync(ngrokPidPath, String(child.pid), "utf8");
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await wait(800);
+    const next = await getNgrokStatus();
+    if (next.running && next.publicUrl) {
       const state = readState();
-      writeState({ ...state, lastAction: `start-cloudflared:${newPid}`, lastCheckedAt: new Date().toISOString() });
-      return { ok: true, message: `cloudflared 已启动 (pid ${newPid})`, publicUrl: cloudflareTunnelUrl };
+      writeState({ ...state, lastAction: `start-ngrok:${child.pid}`, lastCheckedAt: new Date().toISOString() });
+      return { ok: true, message: `Started ngrok pid ${child.pid}.`, publicUrl: next.publicUrl };
     }
   }
 
-  return { ok: false, message: "cloudflared 启动失败，请检查日志或手动运行: sudo cloudflared service install <token>" };
+  return { ok: false, message: "ngrok 启动失败，请检查 ngrok.log。" };
 }
 
-async function stopCloudflared() {
-  const pid = findCloudflaredPid();
+async function stopNgrok() {
+  const pid = readNgrokPid();
   if (!pid || !isProcessRunning(pid)) {
-    return { ok: true, message: "cloudflared 未在运行。" };
+    return { ok: true, message: "ngrok not running." };
   }
 
   try {
     process.kill(pid, "SIGTERM");
   } catch {}
 
-  await wait(2000);
+  await wait(1200);
 
   if (isProcessRunning(pid)) {
     try {
@@ -414,10 +422,10 @@ async function stopCloudflared() {
     } catch {}
   }
 
-  if (existsSync(cloudflaredPidPath)) unlinkSync(cloudflaredPidPath);
+  if (existsSync(ngrokPidPath)) unlinkSync(ngrokPidPath);
   const state = readState();
-  writeState({ ...state, lastAction: `stop-cloudflared:${pid}`, lastCheckedAt: new Date().toISOString() });
-  return { ok: true, message: `Stopped cloudflared pid ${pid}.` };
+  writeState({ ...state, lastAction: `stop-ngrok:${pid}`, lastCheckedAt: new Date().toISOString() });
+  return { ok: true, message: `Stopped ngrok pid ${pid}.` };
 }
 
 function shouldSkipProductionCopy(relative) {
@@ -683,6 +691,7 @@ async function getStatus() {
   }
 
   const state = readState();
+  const ngrok = await getNgrokStatus();
   const cloudflared = await getCloudflaredStatus();
   const release = await getReleaseStatus();
   return {
@@ -707,6 +716,7 @@ async function getStatus() {
       port: developmentPort,
       url: `http://127.0.0.1:${developmentPort}`,
     },
+    ngrok,
     cloudflared,
     release,
     logs: {
@@ -714,7 +724,12 @@ async function getStatus() {
       stderrPath: productionStderrPath,
       developmentStdoutPath,
       developmentStderrPath,
+      ngrokLogPath,
       cloudflaredLogPath,
+      cloudflaredErrPath,
+      legacyCloudflaredErrPath,
+      cloudflaredManagerLogPath,
+      cloudflaredManagerErrPath,
       managerLogPath,
     },
     autostart: getAutostartStatus(),
@@ -725,15 +740,181 @@ async function getStatus() {
   };
 }
 
+async function getNgrokStatus() {
+  try {
+    const response = await fetch(ngrokApiUrl, { cache: "no-store" });
+    if (!response.ok) {
+      return { running: false };
+    }
+    const payload = await response.json();
+    const tunnels = Array.isArray(payload.tunnels) ? payload.tunnels : [];
+    const httpsTunnel = tunnels.find((item) => item.proto === "https") || tunnels[0];
+  return {
+      running: true,
+      publicUrl: httpsTunnel?.public_url ?? null,
+      pid: readNgrokPid(),
+    };
+  } catch {
+    return { running: false, pid: readNgrokPid() };
+  }
+}
+
+// ---- cloudflared ----
+
+function readCloudflaredPid() {
+  if (!existsSync(cloudflaredPidPath)) return null;
+  return Number(readFileSync(cloudflaredPidPath, "utf8"));
+}
+
+function readCloudflaredToken() {
+  const envToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || fileEnv.CLOUDFLARE_TUNNEL_TOKEN || "";
+  if (envToken.trim()) return envToken.trim();
+  if (!existsSync(cloudflaredTokenPath)) return "";
+  return readFileSync(cloudflaredTokenPath, "utf8").trim();
+}
+
+function getCloudflaredPids() {
+  const pids = new Set();
+  const savedPid = readCloudflaredPid();
+  if (Number.isFinite(savedPid)) pids.add(savedPid);
+
+  try {
+    const output = execFileSync("/usr/bin/pgrep", ["-la", "cloudflared"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    for (const pid of parseCloudflaredPids(output)) pids.add(pid);
+  } catch {}
+
+  return [...pids].filter((pid) => isProcessRunning(pid));
+}
+
+async function readCloudflaredMetrics() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1500);
+  try {
+    const resp = await fetch(`http://${cloudflaredMetricsAddress}/metrics`, { signal: controller.signal });
+    return resp.ok ? await resp.text() : "";
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function isCloudflaredHealthy() {
+  if (getCloudflaredPids().length === 0) return false;
+  return parseHaConnections(await readCloudflaredMetrics()) >= 1;
+}
+
 async function getCloudflaredStatus() {
-  const pid = findCloudflaredPid();
-  const running = pid != null && isProcessRunning(pid);
+  const pids = getCloudflaredPids();
+  const actualPid = pids[0] ?? null;
+  if (actualPid) writeFileSync(cloudflaredPidPath, String(actualPid), "utf8");
+
+  const metrics = actualPid ? await readCloudflaredMetrics() : "";
+  const haConnections = parseHaConnections(metrics);
+  const running = pids.length > 0;
+  const healthy = running && haConnections >= 1;
   return {
     running,
-    pid: running ? pid : null,
-    publicUrl: running ? cloudflareTunnelUrl : null,
+    healthy,
+    pid: running ? actualPid : null,
+    pids,
+    haConnections,
+    metricsAddress: cloudflaredMetricsAddress,
+    publicUrl: cloudflareTunnelUrl || null,
+    tokenExists: Boolean(readCloudflaredToken()),
   };
 }
+
+async function startCloudflared() {
+  const status = await getCloudflaredStatus();
+  if (status.running && status.healthy) {
+    return { ok: true, message: "cloudflared already running and healthy." };
+  }
+
+  const token = readCloudflaredToken();
+  if (!token) {
+    return { ok: false, message: "cloudflared token is empty. Set CLOUDFLARE_TUNNEL_TOKEN or data/manager/cloudflared-token.txt." };
+  }
+
+  const managedPid = readCloudflaredPid();
+  if (managedPid && isProcessRunning(managedPid)) {
+    await terminatePid(managedPid);
+    await wait(1000);
+  }
+
+  const child = spawn(cloudflaredBin, buildCloudflaredArgs(token, { metricsAddress: cloudflaredMetricsAddress }), {
+    cwd: projectDir,
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+
+  const childLogPath = chooseWritableLogPath(cloudflaredLogPath, cloudflaredManagerLogPath, canAppendFile);
+  const childErrPath = chooseWritableLogPath(cloudflaredErrPath, cloudflaredManagerErrPath, canAppendFile);
+  const outStream = createWriteStream(childLogPath, { flags: "a" });
+  const errStream = createWriteStream(childErrPath, { flags: "a" });
+  outStream.on("error", () => {});
+  errStream.on("error", () => {});
+  child.stdout.pipe(outStream);
+  child.stderr.pipe(errStream);
+  child.unref();
+  writeFileSync(cloudflaredPidPath, String(child.pid), "utf8");
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await wait(1000);
+    if (!isProcessRunning(child.pid)) {
+      return { ok: false, message: `cloudflared pid ${child.pid} exited early. Check ${childErrPath}.` };
+    }
+    if (await isCloudflaredHealthy()) {
+      const state = readState();
+      writeState({ ...state, lastAction: `start-cloudflared:${child.pid}`, lastCheckedAt: new Date().toISOString() });
+      return { ok: true, message: `Started healthy cloudflared pid ${child.pid}.`, pid: child.pid };
+    }
+  }
+
+  const state = readState();
+  writeState({ ...state, lastAction: `start-cloudflared:${child.pid}`, lastCheckedAt: new Date().toISOString() });
+  return { ok: true, message: `Started cloudflared pid ${child.pid}, waiting for HA connections on ${cloudflaredMetricsAddress}.`, pid: child.pid };
+}
+
+async function stopCloudflared() {
+  const pidsToKill = getCloudflaredPids();
+
+  for (const targetPid of pidsToKill) {
+    try {
+      process.kill(targetPid, "SIGTERM");
+    } catch {}
+  }
+
+  await wait(1500);
+
+  for (const targetPid of pidsToKill) {
+    if (isProcessRunning(targetPid)) {
+      try {
+        process.kill(targetPid, "SIGKILL");
+      } catch {}
+    }
+  }
+
+  const stillRunning = pidsToKill.filter((targetPid) => isProcessRunning(targetPid));
+  if (stillRunning.length === 0 && existsSync(cloudflaredPidPath)) unlinkSync(cloudflaredPidPath);
+
+  const state = readState();
+  writeState({ ...state, lastAction: `stop-cloudflared:${pidsToKill.join(",")}`, lastCheckedAt: new Date().toISOString() });
+  if (stillRunning.length > 0) {
+    return {
+      ok: false,
+      message: `cloudflared still running: ${stillRunning.join(", ")}. If it is root-owned, restart the LaunchDaemon guard with scripts/setup-launchd.sh.`,
+      pids: stillRunning,
+    };
+  }
+  return { ok: true, message: `Stopped cloudflared pids ${pidsToKill.join(",") || "none"}.` };
+}
+
+// ---- watchdog ----
 
 async function handleWatchdog() {
   const state = readState();
@@ -753,7 +934,7 @@ async function handleWatchdog() {
     failureCount = 0;
   }
 
-  if (!status.cloudflared?.running && cloudflareTunnelToken) {
+  if (!status.cloudflared?.running || !status.cloudflared?.healthy) {
     await startCloudflared();
   }
 
@@ -910,7 +1091,7 @@ const html = `<!doctype html>
         <div class="hero-kpis" id="hero-kpis">
           <div class="stat"><span class="label">开发版</span><span class="big" id="kpi-dev">--</span></div>
           <div class="stat"><span class="label">线上版</span><span class="big" id="kpi-prod">--</span></div>
-          <div class="stat"><span class="label">公网入口</span><span class="big" id="kpi-tunnel">--</span></div>
+          <div class="stat"><span class="label">Cloudflare</span><span class="big" id="kpi-cf">--</span></div>
         </div>
       </div>
       <div class="hero-side">
@@ -939,8 +1120,8 @@ const html = `<!doctype html>
           <div class="actions" id="actions" style="margin-top:14px">
             <button class="warn" data-label="一键发布到线上" onclick="call('/api/release/publish', this)">一键发布到线上</button>
             <button data-label="重新构建线上版" onclick="call('/api/rebuild-restart', this)">重新构建线上版</button>
-            <button class="warn" data-label="启动公网入口" onclick="call('/api/tunnel/start', this)">启动公网入口</button>
-            <button class="secondary" data-label="停止公网入口" onclick="call('/api/tunnel/stop', this)">停止公网入口</button>
+            <button class="warn" data-label="启动 Cloudflare 公网入口" onclick="call('/api/cloudflared/start', this)">启动 CF 公网入口</button>
+            <button class="secondary" data-label="停止 Cloudflare 公网入口" onclick="call('/api/cloudflared/stop', this)">停止 CF 公网入口</button>
             <button class="ghost" data-label="切换看门狗" onclick="call('/api/toggle-watchdog', this)">切换看门狗</button>
           </div>
           <div class="release-status neutral" id="publish-status" style="margin-top:14px">等待发布操作...
@@ -1035,15 +1216,17 @@ const html = `<!doctype html>
           <li>线上版地址：<span class="inline-code">http://${appHostname}:${appPort}</span></li>
           <li>线上健康检查接口：<span class="inline-code">${productionHealthUrl}</span></li>
           <li>公网域名：<span class="inline-code">${cloudflareTunnelUrl || '未配置 CLOUDFLARE_TUNNEL_URL'}</span></li>
+          <li>CF metrics：<span class="inline-code">http://${cloudflaredMetricsAddress}/metrics</span></li>
           <li>连续 3 次失败只会自动重启线上版，不会动开发版。</li>
-          <li>如果发现 cloudflared 掉线，看门狗会自动拉起公网入口。</li>
+          <li>如果发现 Cloudflare connector 掉线或 HA 连接为 0，看门狗会尝试恢复 CF 公网入口。</li>
           <li>开发版不走 build，代码修改后直接刷新开发版页面即可看效果。</li>
           <li>“重新构建线上版”会先执行 build，再拉起线上版。</li>
           <li>“发布上线”会把当前开发目录同步到线上运行目录、构建并切换线上版。</li>
           <li>线上运行目录：<span class="inline-code">${productionDir}</span></li>
           <li>线上日志：<span class="inline-code">${productionStdoutPath}</span>、<span class="inline-code">${productionStderrPath}</span></li>
           <li>开发日志：<span class="inline-code">${developmentStdoutPath}</span>、<span class="inline-code">${developmentStderrPath}</span></li>
-          <li>Tunnel 日志：<span class="inline-code">${cloudflaredLogPath}</span></li>
+          <li>CF stdout：<span class="inline-code">${cloudflaredLogPath}</span></li>
+          <li>CF stderr：<span class="inline-code">${cloudflaredErrPath}</span></li>
         </ul>
       </section>
     </div>
@@ -1070,7 +1253,7 @@ const html = `<!doctype html>
       <section class="panel">
         <div class="panel-head">
           <h2>公网日志</h2>
-          <button class="secondary" type="button" onclick="loadTunnelLog()">刷新 Tunnel 日志</button>
+          <button class="secondary" type="button" onclick="loadCloudflaredLog()">刷新 CF 日志</button>
         </div>
         <pre class="log-box" id="tunnel-log">等待读取...</pre>
       </section>
@@ -1134,8 +1317,12 @@ const html = `<!doctype html>
         renderStatusCard('线上版', data.production && data.production.running ? '运行中' : '未运行', data.production && data.production.running ? 'ok' : 'bad'),
         renderStatusCard('线上版健康', data.production && data.production.healthy ? '正常' : '异常', data.production && data.production.healthy ? 'ok' : 'bad'),
         renderStatusCard('线上版 PID', data.production && data.production.pid ? String(data.production.pid) : '无'),
-        renderStatusCard('Tunnel 进程', data.cloudflared && data.cloudflared.pid ? String(data.cloudflared.pid) : '无'),
-        renderStatusCard('公网地址', data.cloudflared && data.cloudflared.running && data.cloudflared.publicUrl ? '<a class="link" href="' + data.cloudflared.publicUrl + '" target="_blank">' + data.cloudflared.publicUrl + '</a>' : '未发现', data.cloudflared && data.cloudflared.running ? 'ok' : 'bad'),
+        renderStatusCard('CF 隧道', data.cloudflared && data.cloudflared.running ? '运行中' : '未运行', data.cloudflared && data.cloudflared.healthy ? 'ok' : 'bad'),
+        renderStatusCard('CF 隧道健康', data.cloudflared && data.cloudflared.healthy ? '正常' : '异常', data.cloudflared && data.cloudflared.healthy ? 'ok' : 'bad'),
+        renderStatusCard('公网地址', data.cloudflared && data.cloudflared.publicUrl ? '<a class="link" href="' + data.cloudflared.publicUrl + '" target="_blank">' + data.cloudflared.publicUrl + '</a>' : '未配置', data.cloudflared && data.cloudflared.healthy ? 'ok' : 'warn-text'),
+        renderStatusCard('CF HA 连接', data.cloudflared && Number.isFinite(data.cloudflared.haConnections) ? String(data.cloudflared.haConnections) : '0', data.cloudflared && data.cloudflared.haConnections > 0 ? 'ok' : 'bad'),
+        renderStatusCard('CF Metrics', data.cloudflared && data.cloudflared.metricsAddress ? data.cloudflared.metricsAddress : '--', data.cloudflared && data.cloudflared.healthy ? 'ok' : 'warn-text'),
+        renderStatusCard('CF 隧道 PID', data.cloudflared && data.cloudflared.pids && data.cloudflared.pids.length ? data.cloudflared.pids.join(', ') : '无'),
         renderStatusCard('看门狗', data.watchdogEnabled ? '已开启' : '已关闭', data.watchdogEnabled ? 'ok' : 'warn-text'),
         renderStatusCard('连续失败次数', String(data.failureCount)),
         renderStatusCard('最近动作', data.lastAction || '无'),
@@ -1143,7 +1330,7 @@ const html = `<!doctype html>
       ].join('');
       document.getElementById('kpi-dev').textContent = data.development && data.development.running ? '在线' : '离线';
       document.getElementById('kpi-prod').textContent = data.production && data.production.running ? '在线' : '离线';
-      document.getElementById('kpi-tunnel').textContent = data.cloudflared && data.cloudflared.running ? '可访问' : '掉线';
+      document.getElementById('kpi-cf').textContent = data.cloudflared && data.cloudflared.healthy ? '可访问' : (data.cloudflared && data.cloudflared.running ? '异常' : '掉线');
       const devVersion = data.release && data.release.developmentVersion ? data.release.developmentVersion : '--';
       const prodVersion = data.release && data.release.productionVersion ? data.release.productionVersion : '--';
       document.getElementById('dev-version').textContent = devVersion;
@@ -1167,10 +1354,16 @@ const html = `<!doctype html>
       document.getElementById('autostart-info').textContent = JSON.stringify(data.autostart || {}, null, 2);
     }
 
-    async function loadTunnelLog() {
-      const res = await fetch('/api/tunnel/log');
+    async function loadNgrokLog() {
+      const res = await fetch('/api/ngrok/log');
       const data = await res.text();
-      document.getElementById('tunnel-log').textContent = data || 'Tunnel 日志为空。';
+      document.getElementById('tunnel-log').textContent = data || 'ngrok 日志为空。';
+    }
+
+    async function loadCloudflaredLog() {
+      const res = await fetch('/api/cloudflared/log');
+      const data = await res.text();
+      document.getElementById('tunnel-log').textContent = data || 'Cloudflared 日志为空。';
     }
 
     async function call(path, button) {
@@ -1196,7 +1389,7 @@ const html = `<!doctype html>
       } finally {
         setBusy(false);
         await refresh();
-        await loadTunnelLog();
+        await loadCloudflaredLog();
       }
     }
 
@@ -1252,7 +1445,7 @@ const html = `<!doctype html>
       }
     }
     refresh();
-    loadTunnelLog();
+    loadCloudflaredLog();
     loadUsers();
     setInterval(refresh, 5000);
   </script>
@@ -1279,13 +1472,13 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "GET" && req.url === "/api/tunnel/log") {
+    if (req.method === "GET" && req.url === "/api/ngrok/log") {
       let log = "";
       try {
-        log = existsSync(cloudflaredLogPath) ? readFileSync(cloudflaredLogPath, "utf8").split(/\r?\n/).slice(-80).join("\n") : "";
+        log = tailFile(ngrokLogPath);
       } catch {}
       res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end(log || "Tunnel 日志为空。");
+      res.end(log || "ngrok 日志为空。");
       return;
     }
 
@@ -1337,15 +1530,50 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && req.url === "/api/tunnel/start") {
+    if (req.method === "POST" && (req.url === "/api/tunnel/start" || req.url === "/api/cloudflared/start")) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(await startCloudflared()));
       return;
     }
 
-    if (req.method === "POST" && req.url === "/api/tunnel/stop") {
+    if (req.method === "POST" && (req.url === "/api/tunnel/stop" || req.url === "/api/cloudflared/stop")) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(await stopCloudflared()));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/ngrok/start") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(await startNgrok()));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/ngrok/stop") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(await stopNgrok()));
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/api/cloudflared/status") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(await getCloudflaredStatus()));
+      return;
+    }
+
+    if (req.method === "GET" && (req.url === "/api/tunnel/log" || req.url === "/api/cloudflared/log")) {
+      let log = "";
+      try {
+        const parts = [
+          ["stdout", tailFile(cloudflaredLogPath, 40)],
+          ["stderr", tailFile(cloudflaredErrPath, 80)],
+          ["manager stdout", tailFile(cloudflaredManagerLogPath, 40)],
+          ["manager stderr", tailFile(cloudflaredManagerErrPath, 80)],
+          ["legacy stderr", tailFile(legacyCloudflaredErrPath, 40)],
+        ].filter(([, content]) => content);
+        log = parts.map(([label, content]) => `# ${label}\n${content}`).join("\n\n");
+      } catch {}
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end(log || "cloudflared 日志为空。");
       return;
     }
 
