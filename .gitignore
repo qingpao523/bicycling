@@ -12,6 +12,7 @@ npm-debug.log*
 .env.*
 !.env.example
 .runtime
+.worktrees/
 .DS_Store
 **/.DS_Store
 **/__pycache__/
