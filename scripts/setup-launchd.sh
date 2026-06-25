@@ -35,6 +35,8 @@ CLOUDFLARED_GUARD="$PROJECT_DIR/scripts/cloudflared-guard.sh"
 CLOUDFLARED_LABEL="com.flyaways.ai-cycling-cloudflared"
 MANAGER_LABEL="com.flyaways.ai-cycling-manager"
 CLOUDFLARED_METRICS="${CLOUDFLARED_METRICS:-127.0.0.1:20241}"
+CLOUDFLARED_PROXY_URL="${CLOUDFLARED_PROXY_URL:-http://127.0.0.1:7897}"
+CLOUDFLARE_PUBLIC_URL="${CLOUDFLARE_PUBLIC_URL:-https://bick.qingpao.fun/}"
 
 if [ ! -x "$CLOUDFLARED_BIN" ]; then
   echo "✗ cloudflared 未安装: $CLOUDFLARED_BIN"
@@ -95,6 +97,10 @@ cat > /tmp/$CLOUDFLARED_LABEL.plist <<PLIST_EOF
         <string>$TOKEN_FILE</string>
         <key>CLOUDFLARED_METRICS</key>
         <string>$CLOUDFLARED_METRICS</string>
+        <key>CLOUDFLARED_PROXY_URL</key>
+        <string>$CLOUDFLARED_PROXY_URL</string>
+        <key>CLOUDFLARE_PUBLIC_URL</key>
+        <string>$CLOUDFLARE_PUBLIC_URL</string>
     </dict>
     <key>WorkingDirectory</key>
     <string>$PROJECT_DIR</string>

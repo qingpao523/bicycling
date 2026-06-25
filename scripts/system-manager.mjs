@@ -8,11 +8,15 @@ import { PrismaClient } from "@prisma/client";
 import {
   DEFAULT_CLOUDFLARED_METRICS,
   buildCloudflaredArgs,
+  buildCloudflaredEnv,
   chooseWritableLogPath,
   isProcessRunning,
   parseCloudflaredPids,
   parseHaConnections,
+  persistPidIfWritable,
+  removePidFileIfPossible,
 } from "./cloudflared-supervisor.mjs";
+import { writeJson, writeJsonError } from "./system-manager-http.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(scriptDir, "..");
@@ -24,6 +28,7 @@ const productionPidPath = path.join(runtimeDir, "app.pid");
 const developmentPidPath = path.join(runtimeDir, "dev-app.pid");
 const ngrokPidPath = path.join(runtimeDir, "ngrok.pid");
 const cloudflaredPidPath = path.join(runtimeDir, "cloudflared.pid");
+const cloudflaredProxyPidPath = path.join(runtimeDir, "cloudflared-proxy.pid");
 const cloudflaredTokenPath = path.join(runtimeDir, "cloudflared-token.txt");
 const cloudflaredLogPath = path.join(runtimeDir, "cloudflared.log");
 const cloudflaredErrPath = path.join(runtimeDir, "cloudflared-err.log");
@@ -65,7 +70,11 @@ const appHostname = process.env.HOSTNAME || fileEnv.HOSTNAME || "127.0.0.1";
 const ngrokBin = process.env.NGROK_BIN || fileEnv.NGROK_BIN || "ngrok";
 const cloudflaredBin = process.env.CLOUDFLARED_BIN || fileEnv.CLOUDFLARED_BIN || "/opt/homebrew/bin/cloudflared";
 const cloudflaredMetricsAddress = process.env.CLOUDFLARED_METRICS || fileEnv.CLOUDFLARED_METRICS || DEFAULT_CLOUDFLARED_METRICS;
-const cloudflareTunnelUrl = process.env.CLOUDFLARE_TUNNEL_URL || fileEnv.CLOUDFLARE_TUNNEL_URL || "";
+const cloudflaredProxyMetricsAddress =
+  process.env.CLOUDFLARED_PROXY_METRICS || fileEnv.CLOUDFLARED_PROXY_METRICS || "127.0.0.1:20242";
+const cloudflaredProxyUrl = process.env.CLOUDFLARED_PROXY_URL || fileEnv.CLOUDFLARED_PROXY_URL || "http://127.0.0.1:7897";
+const cloudflareTunnelUrl =
+  process.env.CLOUDFLARE_TUNNEL_URL || fileEnv.CLOUDFLARE_TUNNEL_URL || process.env.CLOUDFLARE_PUBLIC_URL || fileEnv.CLOUDFLARE_PUBLIC_URL || "https://bick.qingpao.fun/";
 const productionHealthUrl = `http://127.0.0.1:${appPort}/api/system/health`;
 const developmentHealthUrl = `http://127.0.0.1:${developmentPort}/api/system/health`;
 const autoSyncUrl = `http://127.0.0.1:${appPort}/api/system/auto-sync`;
@@ -133,6 +142,11 @@ function getListeningPid(port) {
 
 async function terminatePid(pid, signal = "SIGTERM") {
   if (!pid || !isProcessRunning(pid)) return;
+  try {
+    process.kill(-pid, signal);
+    return;
+  } catch {}
+
   try {
     process.kill(pid, signal);
   } catch {}
@@ -380,10 +394,13 @@ async function startNgrok() {
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
-    env: {
-      ...process.env,
-      ...fileEnv,
-    },
+    env: buildCloudflaredEnv({
+      baseEnv: {
+        ...process.env,
+        ...fileEnv,
+      },
+      proxyUrl: cloudflaredProxyUrl,
+    }),
   });
 
   child.stdout.pipe(stdout);
@@ -432,6 +449,10 @@ function shouldSkipProductionCopy(relative) {
   return (
     relative === "node_modules" ||
     relative.startsWith(`node_modules${path.sep}`) ||
+    relative === ".git" ||
+    relative.startsWith(`.git${path.sep}`) ||
+    relative === ".worktrees" ||
+    relative.startsWith(`.worktrees${path.sep}`) ||
     relative === ".next" ||
     relative.startsWith(`.next${path.sep}`) ||
     relative === ".runtime" ||
@@ -443,7 +464,19 @@ function shouldSkipProductionCopy(relative) {
 }
 
 function syncProjectToProduction() {
-  rmSync(productionDir, { recursive: true, force: true });
+  try {
+    rmSync(productionDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (error) {
+    if ((error && error.code) !== "ENOTEMPTY" || !existsSync(productionDir)) {
+      throw error;
+    }
+
+    for (const entry of readdirSync(productionDir, { withFileTypes: true })) {
+      rmSync(path.join(productionDir, entry.name), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    }
+
+    rmSync(productionDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
   mkdirSync(productionDir, { recursive: true });
 
   for (const entry of readdirSync(projectDir, { withFileTypes: true })) {
@@ -762,8 +795,12 @@ async function getNgrokStatus() {
 // ---- cloudflared ----
 
 function readCloudflaredPid() {
-  if (!existsSync(cloudflaredPidPath)) return null;
-  return Number(readFileSync(cloudflaredPidPath, "utf8"));
+  try {
+    if (!existsSync(cloudflaredPidPath)) return null;
+    return Number(readFileSync(cloudflaredPidPath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function readCloudflaredToken() {
@@ -789,11 +826,11 @@ function getCloudflaredPids() {
   return [...pids].filter((pid) => isProcessRunning(pid));
 }
 
-async function readCloudflaredMetrics() {
+async function readCloudflaredMetrics(metricsAddress = cloudflaredMetricsAddress) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 1500);
   try {
-    const resp = await fetch(`http://${cloudflaredMetricsAddress}/metrics`, { signal: controller.signal });
+    const resp = await fetch(`http://${metricsAddress}/metrics`, { signal: controller.signal });
     return resp.ok ? await resp.text() : "";
   } catch {
     return "";
@@ -804,26 +841,57 @@ async function readCloudflaredMetrics() {
 
 async function isCloudflaredHealthy() {
   if (getCloudflaredPids().length === 0) return false;
-  return parseHaConnections(await readCloudflaredMetrics()) >= 1;
+  const proxyMetrics = await readCloudflaredMetrics(cloudflaredProxyMetricsAddress);
+  const primaryMetrics = proxyMetrics || (await readCloudflaredMetrics(cloudflaredMetricsAddress));
+  if (parseHaConnections(primaryMetrics) < 1) return false;
+
+  const publicCheck = await checkCloudflarePublicUrl();
+  return publicCheck.healthy;
+}
+
+async function checkCloudflarePublicUrl() {
+  if (!cloudflareTunnelUrl) return { configured: false, healthy: true, statusCode: null };
+
+  try {
+    const output = execFileSync(
+      "/usr/bin/curl",
+      ["-sS", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", "--proxy", cloudflaredProxyUrl, cloudflareTunnelUrl],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 6500 },
+    ).trim();
+    const statusCode = Number(output);
+    return {
+      configured: true,
+      healthy: statusCode >= 200 && statusCode < 400,
+      statusCode,
+    };
+  } catch {
+    return { configured: true, healthy: false, statusCode: null };
+  }
 }
 
 async function getCloudflaredStatus() {
   const pids = getCloudflaredPids();
-  const actualPid = pids[0] ?? null;
-  if (actualPid) writeFileSync(cloudflaredPidPath, String(actualPid), "utf8");
-
-  const metrics = actualPid ? await readCloudflaredMetrics() : "";
-  const haConnections = parseHaConnections(metrics);
+  const proxyPid = readPid(cloudflaredProxyPidPath);
   const running = pids.length > 0;
-  const healthy = running && haConnections >= 1;
+  const proxyMetrics = running ? await readCloudflaredMetrics(cloudflaredProxyMetricsAddress) : "";
+  const directMetrics = running && !proxyMetrics ? await readCloudflaredMetrics(cloudflaredMetricsAddress) : "";
+  const metrics = proxyMetrics || directMetrics;
+  const actualPid = proxyMetrics && pids.includes(proxyPid) ? proxyPid : (pids[0] ?? null);
+  if (actualPid) persistPidIfWritable(cloudflaredPidPath, actualPid, { writeFileSync });
+  const haConnections = parseHaConnections(metrics);
+  const publicCheck = await checkCloudflarePublicUrl();
+  const healthy = running && haConnections >= 1 && publicCheck.healthy;
   return {
     running,
     healthy,
     pid: running ? actualPid : null,
     pids,
     haConnections,
-    metricsAddress: cloudflaredMetricsAddress,
+    metricsAddress: proxyMetrics ? cloudflaredProxyMetricsAddress : cloudflaredMetricsAddress,
+    primaryMetricsAddress: cloudflaredMetricsAddress,
+    proxyMetricsAddress: cloudflaredProxyMetricsAddress,
     publicUrl: cloudflareTunnelUrl || null,
+    publicStatusCode: publicCheck.statusCode,
     tokenExists: Boolean(readCloudflaredToken()),
   };
 }
@@ -845,7 +913,7 @@ async function startCloudflared() {
     await wait(1000);
   }
 
-  const child = spawn(cloudflaredBin, buildCloudflaredArgs(token, { metricsAddress: cloudflaredMetricsAddress }), {
+  const child = spawn(cloudflaredBin, buildCloudflaredArgs(token, { metricsAddress: cloudflaredProxyMetricsAddress }), {
     cwd: projectDir,
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -861,7 +929,7 @@ async function startCloudflared() {
   child.stdout.pipe(outStream);
   child.stderr.pipe(errStream);
   child.unref();
-  writeFileSync(cloudflaredPidPath, String(child.pid), "utf8");
+  persistPidIfWritable(cloudflaredPidPath, child.pid, { writeFileSync });
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     await wait(1000);
@@ -877,7 +945,7 @@ async function startCloudflared() {
 
   const state = readState();
   writeState({ ...state, lastAction: `start-cloudflared:${child.pid}`, lastCheckedAt: new Date().toISOString() });
-  return { ok: true, message: `Started cloudflared pid ${child.pid}, waiting for HA connections on ${cloudflaredMetricsAddress}.`, pid: child.pid };
+  return { ok: true, message: `Started cloudflared pid ${child.pid}, waiting for HA connections on ${cloudflaredProxyMetricsAddress}.`, pid: child.pid };
 }
 
 async function stopCloudflared() {
@@ -900,7 +968,7 @@ async function stopCloudflared() {
   }
 
   const stillRunning = pidsToKill.filter((targetPid) => isProcessRunning(targetPid));
-  if (stillRunning.length === 0 && existsSync(cloudflaredPidPath)) unlinkSync(cloudflaredPidPath);
+  if (stillRunning.length === 0) removePidFileIfPossible(cloudflaredPidPath, { existsSync, unlinkSync });
 
   const state = readState();
   writeState({ ...state, lastAction: `stop-cloudflared:${pidsToKill.join(",")}`, lastCheckedAt: new Date().toISOString() });
@@ -1467,8 +1535,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/api/status") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await getStatus()));
+      await writeJson(res, getStatus());
       return;
     }
 
@@ -1483,80 +1550,67 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/api/users") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await listManagedUsers()));
+      await writeJson(res, listManagedUsers());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/start") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await startProductionApp()));
+      await writeJson(res, startProductionApp());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/stop") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await stopProductionApp()));
+      await writeJson(res, stopProductionApp());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/restart") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await restartProductionApp()));
+      await writeJson(res, restartProductionApp());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/rebuild-restart") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await restartProductionApp({ rebuild: true })));
+      await writeJson(res, restartProductionApp({ rebuild: true }));
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/dev/start") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await startDevelopmentApp()));
+      await writeJson(res, startDevelopmentApp());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/dev/stop") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await stopDevelopmentApp()));
+      await writeJson(res, stopDevelopmentApp());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/dev/restart") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await restartDevelopmentApp()));
+      await writeJson(res, restartDevelopmentApp());
       return;
     }
 
     if (req.method === "POST" && (req.url === "/api/tunnel/start" || req.url === "/api/cloudflared/start")) {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await startCloudflared()));
+      await writeJson(res, startCloudflared());
       return;
     }
 
     if (req.method === "POST" && (req.url === "/api/tunnel/stop" || req.url === "/api/cloudflared/stop")) {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await stopCloudflared()));
+      await writeJson(res, stopCloudflared());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/ngrok/start") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await startNgrok()));
+      await writeJson(res, startNgrok());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/ngrok/stop") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await stopNgrok()));
+      await writeJson(res, stopNgrok());
       return;
     }
 
     if (req.method === "GET" && req.url === "/api/cloudflared/status") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await getCloudflaredStatus()));
+      await writeJson(res, getCloudflaredStatus());
       return;
     }
 
@@ -1581,26 +1635,22 @@ const server = createServer(async (req, res) => {
       const state = readState();
       const next = { ...state, watchdogEnabled: !state.watchdogEnabled, lastAction: "toggle-watchdog", lastCheckedAt: new Date().toISOString() };
       writeState(next);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(next));
+      await writeJson(res, Promise.resolve(next));
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/autostart/install") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await installAutostart()));
+      await writeJson(res, installAutostart());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/autostart/uninstall") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await uninstallAutostart()));
+      await writeJson(res, uninstallAutostart());
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/release/publish") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await publishRelease()));
+      await writeJson(res, publishRelease());
       return;
     }
 
@@ -1608,8 +1658,7 @@ const server = createServer(async (req, res) => {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(await updateDevelopmentVersion(body.developmentVersion)));
+      await writeJson(res, updateDevelopmentVersion(body.developmentVersion));
       return;
     }
 
@@ -1622,8 +1671,7 @@ const server = createServer(async (req, res) => {
       lastAction: `request-error:${error instanceof Error ? error.message : "unknown"}`,
       lastCheckedAt: new Date().toISOString(),
     });
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "unknown error" }));
+    writeJsonError(res, error);
   }
 });
 

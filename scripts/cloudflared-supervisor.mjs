@@ -53,6 +53,45 @@ export function buildCloudflaredArgs(
   ];
 }
 
+export function buildCloudflaredEnv(
+  {
+    baseEnv = process.env,
+    proxyUrl = "",
+    noProxy = "127.0.0.1,localhost,::1",
+  } = {},
+) {
+  const env = { ...baseEnv };
+  const trimmedProxyUrl = String(proxyUrl || "").trim();
+  if (!trimmedProxyUrl) return env;
+
+  env.HTTP_PROXY = trimmedProxyUrl;
+  env.HTTPS_PROXY = trimmedProxyUrl;
+  env.ALL_PROXY = trimmedProxyUrl;
+  env.NO_PROXY = noProxy;
+  return env;
+}
+
 export function chooseWritableLogPath(primaryPath, fallbackPath, canWrite) {
   return canWrite(primaryPath) ? primaryPath : fallbackPath;
+}
+
+export function persistPidIfWritable(filePath, pid, { writeFileSync } = {}) {
+  try {
+    writeFileSync?.(filePath, String(pid), "utf8");
+    return true;
+  } catch (error) {
+    if (error?.code === "EACCES" || error?.code === "EPERM") return false;
+    throw error;
+  }
+}
+
+export function removePidFileIfPossible(filePath, { existsSync, unlinkSync } = {}) {
+  try {
+    if (!existsSync?.(filePath)) return true;
+    unlinkSync?.(filePath);
+    return true;
+  } catch (error) {
+    if (error?.code === "EACCES" || error?.code === "EPERM") return false;
+    throw error;
+  }
 }
