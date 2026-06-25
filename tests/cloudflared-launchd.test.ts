@@ -45,4 +45,13 @@ describe("cloudflared launchd guard", () => {
     expect(managerScript).toContain('checkCloudflarePublicUrl()');
     expect(managerScript).toContain('proxyUrl: cloudflaredProxyUrl');
   });
+
+  it("provides a root LaunchDaemon cleanup script that targets the old direct tunnel", () => {
+    const cleanupScript = readFileSync(path.join(projectDir, "scripts", "disable-root-cloudflared.sh"), "utf8");
+
+    expect(cleanupScript).toContain("com.flyaways.ai-cycling-cloudflared");
+    expect(cleanupScript).toContain("/Library/LaunchDaemons/$LABEL.plist");
+    expect(cleanupScript).toContain("127.0.0.1:20241");
+    expect(cleanupScript).toContain('launchctl bootout "system/$LABEL"');
+  });
 });
